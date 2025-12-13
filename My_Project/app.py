@@ -10,7 +10,7 @@ st.title("💼 Salary Prediction using Linear Regression")
 st.write("Enter years of experience to predict salary")
 
 # Load trained model
-with open("salary_model(linear_regressi).pkl", "rb") as file:
+with open("salary_model.pkl", "rb") as file:
     model = pickle.load(file)
 
 # User input
