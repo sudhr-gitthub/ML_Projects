@@ -6,9 +6,11 @@ streamlit
 # Library to load the .pkl model file
 joblib
 
-# Common ML/Data libraries
-pandas
+# For array manipulation
 numpy
+
+# Required for image loading and processing (PIL/Pillow)
+Pillow
 
 # Scikit-learn must be included if the model was trained with it
 scikit-learn
