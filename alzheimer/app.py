@@ -1,16 +1,16 @@
-# app.py
+# ML_Projects/alzheimer/app.py
 
 import streamlit as st
 import joblib
 import numpy as np
-import pandas as pd # Included for common ML workflow compatibility
+import pandas as pd
 import os
 
 # Define the file name for the model
 MODEL_FILE_NAME = 'alzheimers_logreg.pkl'
 
 # Use st.cache_resource to load the model only once, improving performance.
-# It assumes the file is in the same directory as this app.py in your GitHub repo.
+# This assumes the model file is located in the same directory as this app.py.
 @st.cache_resource
 def load_model(file_path):
     """Loads the machine learning model from the local file."""
@@ -19,8 +19,8 @@ def load_model(file_path):
         st.success(f"Model '{MODEL_FILE_NAME}' loaded successfully!")
         return model
     except FileNotFoundError:
-        st.error(f"Error: Model file '{file_path}' not found in the repository.")
-        st.stop() # Stop the app if the crucial file is missing
+        st.error(f"Error: Model file '{file_path}' not found in the 'alzheimer/' directory.")
+        st.stop()
     except Exception as e:
         st.error(f"Error loading the model: {e}")
         st.stop()
@@ -50,6 +50,7 @@ with col3:
 gender_val = 1 if feature_gender == 'Male' else 0
 
 # Create the input array (must be 2D for scikit-learn models)
+# This feature vector order must match your model training data.
 input_data = np.array([[feature_age, gender_val, feature_mmse]])
 
 # --- Prediction Logic ---
@@ -57,7 +58,7 @@ if st.button("Generate Prediction"):
     try:
         # Predict the class
         prediction = model.predict(input_data)
-        
+
         # Get probability (for classification models)
         if hasattr(model, 'predict_proba'):
             probabilities = model.predict_proba(input_data)[0]
@@ -66,12 +67,12 @@ if st.button("Generate Prediction"):
 
         # Display Result
         st.subheader("Prediction Result:")
-        
+
         if prediction[0] == 1: # Assuming '1' means High Risk/Positive
             st.error("Diagnosis: **High Risk of Alzheimer's**")
         else: # Assuming '0' means Low Risk/Negative
             st.success("Diagnosis: **Low Risk**")
-            
+
         if probabilities is not None:
             # Assuming probabilities[0] is Low Risk and probabilities[1] is High Risk
             st.info(f"Low Risk Probability: **{probabilities[0]*100:.2f}%**")
@@ -83,20 +84,20 @@ if st.button("Generate Prediction"):
         st.error(f"An unexpected error occurred during prediction: {e}")
 
 # --- Deployment Context for GitHub Connection ---
-st.sidebar.title("Streamlit & GitHub Connection")
+st.sidebar.title("Streamlit & GitHub Deployment")
 st.sidebar.markdown(
     """
-    To "connect" this Streamlit app to GitHub for deployment (e.g., on 
-    Streamlit Community Cloud or another cloud service):
+    ### 🚀 Deployment Configuration (for Streamlit Cloud):
+    
+    Based on your path:
+    `sudhr-gitthub/ML_Projects/main/alzheimer/app.py`
 
-    ### 🚀 Deployment Steps:
-    1. **Create GitHub Repo:** Create a new public repository (e.g., `streamlit-alzheimers-app`).
-    2. **Add Files:** Upload `app.py`, `requirements.txt`, and your model file (`alzheimers_logreg.pkl`) to the root of the repository.
-    3. **Deploy on Streamlit Cloud:**
-       - Go to **[share.streamlit.io](https://share.streamlit.io)** and log in.
-       - Click **`New App`**.
-       - Select your GitHub repository and the main branch.
-       - Ensure the "Main file path" is set to `app.py`.
-       - Click **`Deploy!`**.
+    When deploying on Streamlit Community Cloud:
+    
+    1. **Repository:** `sudhr-gitthub/ML_Projects`
+    2. **Branch:** `main`
+    3. **Main file path:** `alzheimer/app.py` (Crucial change!)
+    4. **Model Location:** Ensure `alzheimers_logreg.pkl` is inside the `alzheimer/` folder with `app.py`.
+    5. **Dependencies:** Ensure `requirements.txt` is in the repository root (`ML_Projects/`).
     """
 )
