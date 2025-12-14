@@ -1,0 +1,14 @@
+# requirements.txt
+
+# Core Streamlit library for the web app
+streamlit
+
+# Library to load the .pkl model file
+joblib
+
+# Common ML/Data libraries
+pandas
+numpy
+
+# Scikit-learn, required if your model object needs it to run
+scikit-learn
