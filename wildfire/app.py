@@ -1,95 +1,104 @@
 import streamlit as st
-import joblib
+import pandas as pd
 import numpy as np
+import joblib
 import os
 
-# --- Page Configuration ---
-st.set_page_config(page_title="Wildfire Prediction", page_icon="🔥", layout="centered")
+# Page Configuration
+st.set_page_config(
+    page_title="Wildfire Prediction",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-def main():
-    # --- 1. Display Banner Image ---
-    st.image(
-        "https://images.unsplash.com/photo-1590418606746-018840f9cd0f?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80", 
-        caption="Forest Fire Risk Assessment System",
-        use_column_width=True
-    )
-
-    st.title("🔥 Wildfire Prediction System")
-    st.markdown("Enter the weather conditions below to assess the risk of a forest fire.")
-    st.markdown("---")
-
-    # --- 2. Model Loading (Fixed for Joblib) ---
+# --- Load Model ---
+def load_model():
+    # Helper to load model correctly whether locally or deployed
     current_dir = os.path.dirname(os.path.abspath(__file__))
     model_path = os.path.join(current_dir, 'wildfire.pkl')
-
-    if not os.path.exists(model_path):
-        st.error(f"❌ Error: Model file not found.")
-        st.warning(f"Please ensure 'wildfire.pkl' is in: {current_dir}")
-        st.stop()
-
-    try:
-        # We use joblib.load() which is better for sklearn models
-        model = joblib.load(model_path)
-    except Exception as e:
-        st.error(f"❌ Error loading model: {e}")
-        st.error("This usually means the 'wildfire.pkl' file is corrupted or downloaded incorrectly.")
-        st.info("💡 Try re-downloading the 'raw' file from GitHub and replacing it in your folder.")
-        st.stop()
-
-    # --- 3. User Inputs ---
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.subheader("🌡️ Weather Data")
-        temp = st.number_input("Temperature (°C)", 20.0, 50.0, 30.0)
-        rh = st.number_input("Relative Humidity (%)", 10.0, 90.0, 50.0)
-        ws = st.number_input("Wind Speed (km/h)", 0.0, 50.0, 15.0)
-        rain = st.number_input("Rainfall (mm)", 0.0, 20.0, 0.0)
-
-    with col2:
-        st.subheader("🌲 FWI Components")
-        ffmc = st.number_input("FFMC Index", 0.0, 100.0, 80.0)
-        dmc = st.number_input("DMC Index", 0.0, 100.0, 15.0)
-        dc = st.number_input("DC Index", 0.0, 200.0, 50.0)
-        isi = st.number_input("ISI Index", 0.0, 50.0, 5.0)
-        bui = st.number_input("BUI Index", 0.0, 100.0, 15.0)
-        fwi = st.number_input("FWI Index", 0.0, 100.0, 5.0)
-
-    st.markdown("---")
-
-    # --- 4. Prediction Logic ---
-    if st.button("Analyze Risk", type="primary", use_container_width=True):
-        features = np.array([[temp, rh, ws, rain, ffmc, dmc, dc, isi, bui, fwi]])
-        
+    
+    if os.path.exists(model_path):
         try:
-            prediction = model.predict(features)
-            
-            result_container = st.container()
-            
-            # Check result (1/fire = High Risk, 0/not fire = Low Risk)
-            # Adjusting logic to catch various output formats (string or int)
-            is_fire = False
-            pred_val = prediction[0]
-            
-            if isinstance(pred_val, str):
-                if pred_val.lower() in ['fire', 'yes', '1']:
-                    is_fire = True
-            elif pred_val == 1:
-                is_fire = True
-
-            if is_fire:
-                with result_container:
-                    st.error("⚠️ DANGER: HIGH WILDFIRE RISK DETECTED")
-                    st.markdown("### Status: **Fire Likely**")
-                    st.image("https://media.giphy.com/media/l0IXYpBrw6gD6XzFK/giphy.gif", width=300)
-            else:
-                with result_container:
-                    st.success("✅ SAFE: LOW WILDFIRE RISK")
-                    st.markdown("### Status: **No Fire**")
-                    st.balloons()
-                    
+            return joblib.load(model_path)
         except Exception as e:
-            st.error(f"Prediction Error: {e}")
+            st.error(f"Error loading model: {e}")
+            return None
+    else:
+        st.error("Model file 'wildfire.pkl' not found.")
+        return None
 
-if __name__ == '__main__':
-    main()
+model = load_model()
+
+# --- App Layout ---
+st.title("🔥 Wildfire Prediction App")
+st.markdown("""
+This application predicts the **Fire Weather Index (FWI)** class based on environmental parameters.
+Adjust the values in the sidebar to see the prediction.
+""")
+
+# --- Sidebar Inputs ---
+st.sidebar.header("User Input Parameters")
+
+def user_input_features():
+    # Weather Components
+    st.sidebar.subheader("Weather Data")
+    temp = st.sidebar.slider('Temperature (°C)', 20.0, 42.0, 32.0)
+    rh = st.sidebar.slider('Relative Humidity (%)', 21.0, 90.0, 45.0)
+    ws = st.sidebar.slider('Wind Speed (km/h)', 6.0, 29.0, 14.0)
+    rain = st.sidebar.slider('Rainfall (mm)', 0.0, 16.8, 0.0)
+
+    # FWI Components
+    st.sidebar.subheader("FWI Components")
+    ffmc = st.sidebar.slider('Fine Fuel Moisture Code (FFMC)', 28.6, 92.5, 80.0)
+    dmc = st.sidebar.slider('Duff Moisture Code (DMC)', 1.1, 65.9, 20.0)
+    dc = st.sidebar.slider('Drought Code (DC)', 7.0, 220.4, 50.0)
+    isi = st.sidebar.slider('Initial Spread Index (ISI)', 0.0, 18.5, 8.0)
+    bui = st.sidebar.slider('Buildup Index (BUI)', 1.1, 68.0, 20.0)
+    fwi = st.sidebar.slider('Fire Weather Index (FWI)', 0.0, 31.1, 10.0)
+
+    # Dictionary of features
+    data = {
+        'Temperature': temp,
+        'RH': rh,
+        'Ws': ws,
+        'Rain': rain,
+        'FFMC': ffmc,
+        'DMC': dmc,
+        'DC': dc,
+        'ISI': isi,
+        'BUI': bui,
+        'FWI': fwi
+    }
+    features = pd.DataFrame(data, index=[0])
+    return features
+
+# Get input from sidebar
+input_df = user_input_features()
+
+# --- Main Section Display ---
+st.subheader('Current Input Parameters')
+st.write(input_df)
+
+# --- Prediction ---
+if st.button('Predict Fire Risk', type="primary"):
+    if model is not None:
+        try:
+            # Convert DataFrame to numpy array for the model
+            prediction = model.predict(input_df.values)
+            prediction_proba = model.predict_proba(input_df.values)
+
+            st.subheader('Prediction Result')
+            
+            # Handling the output (assuming 1 = Fire, 0 = No Fire)
+            if prediction[0] == 1 or str(prediction[0]).lower() in ['fire', '1']:
+                st.error("⚠️ PREDICTION: FIRE")
+                st.write(f"Confidence: {prediction_proba[0][1] * 100:.2f}%")
+            else:
+                st.success("✅ PREDICTION: NO FIRE")
+                st.write(f"Confidence: {prediction_proba[0][0] * 100:.2f}%")
+
+        except Exception as e:
+            st.error(f"Error making prediction: {e}")
+            st.info("Ensure the input features match the model's training data exactly.")
+    else:
+        st.warning("Model not loaded. Please upload 'wildfire.pkl' to the app directory.")
