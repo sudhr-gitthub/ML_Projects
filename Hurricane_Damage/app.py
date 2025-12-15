@@ -1,6 +1,6 @@
 import streamlit as st
 import numpy as np
-import pickle
+import joblib
 from PIL import Image
 import os
 
@@ -10,13 +10,14 @@ st.set_page_config(page_title="Hurricane Damage Detection", layout="centered")
 # --- Model Loading ---
 @st.cache_resource
 def load_model():
-    # Helper to get absolute path
+    # Get the directory where app.py is located
     current_dir = os.path.dirname(os.path.abspath(__file__))
     
-    # Check for likely model names
-    possible_names = ['model.pkl', 'hurricane_classifier.pkl', 'hurricane_damage.pkl', 'wildfire.pkl']
+    # List of possible names for your model file
+    possible_names = ['model.pkl', 'hurricane.pkl', 'hurricane_damage.pkl', 'wildfire.pkl']
     model_path = None
     
+    # Search for the file
     for name in possible_names:
         temp_path = os.path.join(current_dir, name)
         if os.path.exists(temp_path):
@@ -25,15 +26,23 @@ def load_model():
             
     if model_path is None:
         st.error("❌ Model not found.")
-        st.warning("Please upload your model file (e.g., 'model.pkl') to the GitHub repository folder.")
+        st.warning("Please upload your model file (e.g., 'model.pkl') to the GitHub repository.")
         return None
 
     try:
-        with open(model_path, 'rb') as file:
-            model = pickle.load(file)
+        # USE JOBLIB INSTEAD OF PICKLE (Fixes the '\x03' error)
+        model = joblib.load(model_path)
         return model
     except Exception as e:
-        st.error(f"Error loading model: {e}")
+        st.error(f"❌ Error loading model: {e}")
+        # Check if it's a Git LFS pointer (common issue)
+        try:
+            with open(model_path, "r", errors='ignore') as f:
+                content = f.read(50)
+            if "version https://git-lfs" in content:
+                st.error("⚠️ It looks like you uploaded a Git LFS pointer, not the actual file.")
+        except:
+            pass
         return None
 
 model = load_model()
@@ -45,55 +54,48 @@ st.markdown("Upload a satellite image to detect if a building has sustained dama
 uploaded_file = st.file_uploader("Choose a satellite image...", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
-    # 1. Display Image
-    image = Image.open(uploaded_file)
-    st.image(image, caption='Uploaded Image', use_column_width=True)
-    
-    # 2. Preprocess Image
-    # (Resize to match the training data - typically 100x100 or 128x128 for these projects)
-    # We will assume 100x100 flattened based on standard Sudhanshu/iNeuron projects
-    st.write("Analyzing...")
-    
     try:
-        # Resize to typical training size
-        img_resized = image.resize((100, 100)) 
+        # 1. Display Image
+        image = Image.open(uploaded_file)
+        st.image(image, caption='Uploaded Image', use_column_width=True)
         
-        # Convert to numpy array
+        st.write("Analyzing...")
+        
+        # 2. Preprocess Image (Resize to 100x100 and Flatten)
+        # This matches standard ML project formats
+        img_resized = image.resize((100, 100)) 
         img_array = np.array(img_resized)
         
-        # Flatten the image (Height * Width * Channels) -> 1D Array
-        # If the model expects flattened input:
+        # Flatten: (100, 100, 3) -> (1, 30000)
         if len(img_array.shape) == 3:
             flattened_img = img_array.flatten().reshape(1, -1)
         else:
-            # Handle grayscale
+            # Handle grayscale images if necessary
             flattened_img = img_array.flatten().reshape(1, -1)
 
         # 3. Predict
-        if st.button("Detect Damage"):
+        if st.button("Detect Damage", type="primary"):
             if model is not None:
                 prediction = model.predict(flattened_img)
                 
                 # Result Logic
-                # Assuming 0 = No Damage, 1 = Damage (or 'damage'/'no_damage' strings)
                 result = prediction[0]
                 
                 st.subheader("Assessment Result:")
-                if str(result).lower() in ['1', 'damage', 'yes']:
+                # Check for various "Damage" indicators (1, '1', 'damage', 'yes')
+                if str(result).lower() in ['1', 'damage', 'yes', 'true']:
                     st.error("⚠️ DAMAGE DETECTED")
                     st.write("This structure appears to have sustained damage.")
                 else:
                     st.success("✅ NO DAMAGE")
                     st.write("This structure appears intact.")
             else:
-                st.error("Model is not loaded.")
+                st.error("Model is not loaded. Please check the sidebar/logs.")
                 
     except Exception as e:
         st.error(f"Error during processing: {e}")
-        st.info("Ensure the image is valid and the model expects 100x100 pixel input.")
+        st.info("Ensure the model expects a flattened 100x100 pixel image.")
 
 # --- Sidebar Info ---
 st.sidebar.title("About")
-st.sidebar.info(
-    "This app uses Machine Learning to classify post-hurricane satellite imagery."
-)
+st.sidebar.info("This app uses Machine Learning to classify post-hurricane satellite imagery.")
