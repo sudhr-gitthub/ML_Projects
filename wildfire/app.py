@@ -8,7 +8,6 @@ st.set_page_config(page_title="Wildfire Prediction", page_icon="🔥", layout="c
 
 def main():
     # --- 1. Display Banner Image ---
-    # Using a public URL for a forest fire banner image
     st.image(
         "https://images.unsplash.com/photo-1590418606746-018840f9cd0f?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80", 
         caption="Forest Fire Risk Assessment System",
@@ -19,13 +18,16 @@ def main():
     st.markdown("Enter the weather conditions below to assess the risk of a forest fire.")
     st.markdown("---")
 
-    # --- 2. Load Model Automatically ---
-    # This looks for 'wildfire.pkl' in the SAME directory as app.py
-    model_path = 'wildfire.pkl'
-    
+    # --- 2. Robust Model Loading ---
+    # This block gets the absolute path of the current file (app.py)
+    # and forces Python to look for 'wildfire.pkl' in the EXACT same folder.
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    model_path = os.path.join(current_dir, 'wildfire.pkl')
+
     if not os.path.exists(model_path):
-        st.error(f"❌ Error: Could not find '{model_path}'.")
-        st.warning("Please make sure 'wildfire.pkl' is in the same folder as this 'app.py' file.")
+        st.error(f"❌ Error: Model file not found.")
+        st.error(f"Looking for: **{model_path}**")
+        st.warning("👉 Solution: Move your 'wildfire.pkl' file into this specific folder shown above.")
         st.stop()
 
     try:
@@ -57,19 +59,19 @@ def main():
 
     # --- 4. Prediction Logic ---
     if st.button("Analyze Risk", type="primary", use_container_width=True):
+        # The model expects a 2D array of features
         features = np.array([[temp, rh, ws, rain, ffmc, dmc, dc, isi, bui, fwi]])
         
         try:
             prediction = model.predict(features)
             
-            # Create a visual result area
             result_container = st.container()
             
+            # Check result (1/fire = High Risk, 0/not fire = Low Risk)
             if prediction[0] == 1 or str(prediction[0]).lower() in ['fire', '1']:
                 with result_container:
                     st.error("⚠️ DANGER: HIGH WILDFIRE RISK DETECTED")
                     st.markdown("### Status: **Fire Likely**")
-                    # Display a 'Fire' image
                     st.image("https://media.giphy.com/media/l0IXYpBrw6gD6XzFK/giphy.gif", width=300)
             else:
                 with result_container:
