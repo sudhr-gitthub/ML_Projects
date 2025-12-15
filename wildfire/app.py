@@ -2,23 +2,29 @@ import streamlit as st
 import pickle
 import numpy as np
 
-# Load the trained model
-# Ensure 'wildfire.pkl' is in the same directory as app.py
-try:
-    model = pickle.load(open('wildfire.pkl', 'rb'))
-except FileNotFoundError:
-    st.error("Model file 'wildfire.pkl' not found. Please upload it to the directory.")
-    st.stop()
-except Exception as e:
-    st.error(f"Error loading model: {e}")
-    st.stop()
+# Set page config first
+st.set_page_config(page_title="Wildfire Prediction App", layout="centered")
 
 def main():
-    st.set_page_config(page_title="Wildfire Prediction App", layout="centered")
-    
     st.title("🔥 Wildfire Prediction System")
-    st.markdown("Enter the weather indices below to predict the occurrence of a wildfire.")
+    st.markdown("Predict wildfire risk based on weather indices.")
 
+    # --- Step 1: Model Loading ---
+    st.sidebar.header("Model Configuration")
+    uploaded_file = st.sidebar.file_uploader("Upload your model (wildfire.pkl)", type=['pkl'])
+
+    if uploaded_file is not None:
+        try:
+            model = pickle.load(uploaded_file)
+            st.sidebar.success("Model loaded successfully!")
+        except Exception as e:
+            st.sidebar.error(f"Error loading model: {e}")
+            st.stop()
+    else:
+        st.info("⬅️ Please upload the 'wildfire.pkl' file in the sidebar to start.")
+        st.stop()
+
+    # --- Step 2: User Inputs ---
     # Create two columns for better layout
     col1, col2 = st.columns(2)
 
@@ -38,25 +44,25 @@ def main():
         bui = st.number_input("Buildup Index (BUI)", min_value=0.0, max_value=100.0, value=15.0, step=0.1)
         fwi = st.number_input("Fire Weather Index (FWI)", min_value=0.0, max_value=100.0, value=5.0, step=0.1)
 
-    # Prediction button
-    if st.button("Predict Wildfire Risk"):
-        # Arrange features in the order the model expects
-        # Standard Algerian Dataset Order: [Temp, RH, Ws, Rain, FFMC, DMC, DC, ISI, BUI, FWI]
+    # --- Step 3: Prediction ---
+    if st.button("Predict Wildfire Risk", type="primary"):
+        # Arrange features in the standard Algerian Dataset Order
+        # [Temp, RH, Ws, Rain, FFMC, DMC, DC, ISI, BUI, FWI]
         features = np.array([[temp, rh, ws, rain, ffmc, dmc, dc, isi, bui, fwi]])
         
         try:
             prediction = model.predict(features)
             
-            # Assuming the model returns 1 for Fire and 0 for No Fire (or similar classes)
-            if prediction[0] == 1 or prediction[0] == 'fire':
+            # Logic for result display
+            if prediction[0] == 1 or str(prediction[0]).lower() in ['fire', '1']:
                 st.error("⚠️ Prediction: High Risk of Wildfire!")
-                st.image("https://media.giphy.com/media/3o6ozh46EbuWRYAcSY/giphy.gif", caption="Danger Alert", width=300)
             else:
                 st.success("✅ Prediction: Low Risk / No Wildfire")
                 st.balloons()
                 
-        except ValueError as e:
-            st.error(f"Error during prediction. The model might expect a different number of features.\nDetails: {e}")
+        except Exception as e:
+            st.error(f"Prediction Error: {e}")
+            st.warning("Ensure your model expects 10 inputs in this order: [Temp, RH, Ws, Rain, FFMC, DMC, DC, ISI, BUI, FWI]")
 
 if __name__ == '__main__':
     main()
