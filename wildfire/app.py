@@ -1,5 +1,5 @@
 import streamlit as st
-import pickle
+import joblib
 import numpy as np
 import os
 
@@ -18,22 +18,22 @@ def main():
     st.markdown("Enter the weather conditions below to assess the risk of a forest fire.")
     st.markdown("---")
 
-    # --- 2. Robust Model Loading ---
-    # This block gets the absolute path of the current file (app.py)
-    # and forces Python to look for 'wildfire.pkl' in the EXACT same folder.
+    # --- 2. Model Loading (Fixed for Joblib) ---
     current_dir = os.path.dirname(os.path.abspath(__file__))
     model_path = os.path.join(current_dir, 'wildfire.pkl')
 
     if not os.path.exists(model_path):
         st.error(f"❌ Error: Model file not found.")
-        st.error(f"Looking for: **{model_path}**")
-        st.warning("👉 Solution: Move your 'wildfire.pkl' file into this specific folder shown above.")
+        st.warning(f"Please ensure 'wildfire.pkl' is in: {current_dir}")
         st.stop()
 
     try:
-        model = pickle.load(open(model_path, 'rb'))
+        # We use joblib.load() which is better for sklearn models
+        model = joblib.load(model_path)
     except Exception as e:
-        st.error(f"Error loading model: {e}")
+        st.error(f"❌ Error loading model: {e}")
+        st.error("This usually means the 'wildfire.pkl' file is corrupted or downloaded incorrectly.")
+        st.info("💡 Try re-downloading the 'raw' file from GitHub and replacing it in your folder.")
         st.stop()
 
     # --- 3. User Inputs ---
@@ -59,7 +59,6 @@ def main():
 
     # --- 4. Prediction Logic ---
     if st.button("Analyze Risk", type="primary", use_container_width=True):
-        # The model expects a 2D array of features
         features = np.array([[temp, rh, ws, rain, ffmc, dmc, dc, isi, bui, fwi]])
         
         try:
@@ -68,7 +67,17 @@ def main():
             result_container = st.container()
             
             # Check result (1/fire = High Risk, 0/not fire = Low Risk)
-            if prediction[0] == 1 or str(prediction[0]).lower() in ['fire', '1']:
+            # Adjusting logic to catch various output formats (string or int)
+            is_fire = False
+            pred_val = prediction[0]
+            
+            if isinstance(pred_val, str):
+                if pred_val.lower() in ['fire', 'yes', '1']:
+                    is_fire = True
+            elif pred_val == 1:
+                is_fire = True
+
+            if is_fire:
                 with result_container:
                     st.error("⚠️ DANGER: HIGH WILDFIRE RISK DETECTED")
                     st.markdown("### Status: **Fire Likely**")
