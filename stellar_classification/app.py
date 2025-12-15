@@ -19,7 +19,9 @@ st.write("This app uses a Machine Learning model to classify astronomical object
 def load_model():
     try:
         # Load the model file
-        model = joblib.load('stellar_classifier.pkl')
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        model_path = os.path.join(current_dir, 'stellar_classifier.pkl')
+        model = joblib.load(model_path)
         return model
     except Exception as e:
         st.error(f"Error loading model: {e}")
