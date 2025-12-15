@@ -1,20 +1,22 @@
 import streamlit as st
 import numpy as np
 import joblib
-from PIL import Image
 import os
+from PIL import Image
 
 # --- Constants (must match training) ---
 IMG_SIZE = 256
 CURR_DIR = os.path.dirname(__file__)
-MODEL_PATH = os.path.join(CURR_DIR, "Helmet_Classifier.pkl")
+MODEL_PATH = os.path.join(CURR_DIR, "hurricane_classifier.pkl")
+
 # --- Load Model ---
 with open(MODEL_PATH, "rb") as file:
     model = joblib.load(file)
+
 # --- App UI ---
-st.set_page_config(page_title="Helmet Detection", layout="centered")
-st.title("🪖 Helmet Detection System")
-st.write("Upload an image to check whether a helmet is detected.")
+st.set_page_config(page_title="Hurricane Damage Detection", layout="centered")
+st.title("🌪️ Hurricane Damage Detection")
+st.write("Upload an image to predict whether hurricane damage is present.")
 
 # --- Image Upload ---
 uploaded_file = st.file_uploader(
@@ -37,6 +39,6 @@ if uploaded_file is not None:
         probability = model.predict_proba(img_flattened)[0][1]
 
         if prediction == 1:
-            st.success(f"✅ Helmet Detected\n\nProbability: {probability:.2f}")
+            st.error(f"⚠️ Damage Detected\n\nProbability: {probability:.2f}")
         else:
-            st.error(f"⚠️ No Helmet Detected\n\nProbability: {1 - probability:.2f}")
+            st.success(f"✅ No Significant Damage Detected\n\nProbability: {1 - probability:.2f}")
