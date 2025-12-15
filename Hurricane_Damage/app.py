@@ -14,7 +14,7 @@ def load_model():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     
     # List of possible names for your model file
-    possible_names = ['model.pkl', 'hurricane.pkl', 'hurricane_damage.pkl', 'wildfire.pkl']
+    possible_names = ['model.pkl', 'hurricane.pkl', 'hurricane_damage.pkl', 'hurricane_classifier.pkl']
     model_path = None
     
     # Search for the file
