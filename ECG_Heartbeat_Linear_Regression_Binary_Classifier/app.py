@@ -5,28 +5,18 @@ import pandas as pd
 import os
 
 # Page Configuration
-st.set_page_config(
-    page_title="ECG Heartbeat Classifier",
-    page_icon="💓",
-    layout="centered"
-)
+st.set_page_config(page_title="ECG Heartbeat Classifier", page_icon="💓", layout="centered")
 
-# --- 1. Load the Model (FIXED PATHING) ---
+# --- 1. Load the Model ---
 @st.cache_resource
 def load_model():
     try:
-        # Get the absolute path of the directory where this app.py file is located
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        
-        # Construct the full path to the pickle file
         model_path = os.path.join(current_dir, 'ecg_classifier.pkl')
-        
-        # Load the model
         model = joblib.load(model_path)
         return model
     except FileNotFoundError:
         st.error(f"⚠️ Model file not found at: {model_path}")
-        st.warning("Please ensure 'ecg_classifier.pkl' is committed to the same folder as 'app.py' in your GitHub repository.")
         return None
     except Exception as e:
         st.error(f"Error loading model: {e}")
@@ -36,19 +26,13 @@ model = load_model()
 
 # --- 2. UI Layout ---
 st.title("💓 ECG Heartbeat Classifier")
-st.markdown("""
-This app analyzes ECG heartbeat signals to detect anomalies.
-* **Model Type:** Linear Regression (acting as Binary Classifier)
-* **Input:** Raw ECG signal data (comma-separated values)
-""")
-
+st.markdown("Analyze ECG signals. **Note:** This model requires inputs of specific length (usually 187). Short inputs will be padded.")
 st.divider()
 
 # --- 3. Input Section ---
 st.subheader("1. Input ECG Signal")
-st.caption("Paste your signal data below (e.g., 0.9, 0.5, 0.1, ...). Standard ECG samples usually have 187 or more points.")
-
-default_csv = "0.0, 0.1, 0.2, 0.3, 0.2, 0.1, 0.0" 
+# Default example with exactly 187 zeros for safety, or a small sample
+default_csv = "0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.0" 
 input_data = st.text_area("Paste CSV Data Here:", height=150, placeholder=default_csv)
 
 # --- 4. Processing & Prediction ---
@@ -56,54 +40,64 @@ if st.button("Analyze Heartbeat", type="primary"):
     if not input_data:
         st.warning("Please enter some data first.")
     else:
+        # --- STEP 1: PARSE INPUT ---
         try:
-            # --- ROBUST CLEANING START ---
-            # 1. Replace newlines with commas
+            # Clean and split data
             clean_str = input_data.replace('\n', ',')
-            
-            # 2. Remove common array characters like [ ] ( )
             for char in ['[', ']', '(', ')']:
                 clean_str = clean_str.replace(char, '')
             
-            # 3. Split by comma and convert to floats
             data_list = [float(x.strip()) for x in clean_str.split(',') if x.strip()]
-            # --- ROBUST CLEANING END ---
+        except ValueError:
+            st.error("❌ Format Error: Could not read the numbers. Please remove any letters or text headers.")
+            st.stop()
 
-            # Convert to numpy array
-            features = np.array(data_list).reshape(1, -1)
-            
-            # --- Visualization ---
-            st.subheader("2. Signal Visualization")
-            chart_data = pd.DataFrame(data_list, columns=["Amplitude"])
-            st.line_chart(chart_data)
+        # --- STEP 2: HANDLE DIMENSIONS ---
+        if model:
+            try:
+                # Check what the model expects (usually 187 for MIT-BIH)
+                if hasattr(model, 'n_features_in_'):
+                    expected_features = model.n_features_in_
+                else:
+                    expected_features = 187 # Fallback standard
 
-            if model:
-                # Prediction
+                current_features = len(data_list)
+                
+                # Auto-pad with zeros if too short
+                if current_features < expected_features:
+                    padding = [0.0] * (expected_features - current_features)
+                    data_list.extend(padding)
+                    st.warning(f"⚠️ Input had {current_features} points, but model expects {expected_features}. Padded with {len(padding)} zeros to prevent crash.")
+                
+                # Truncate if too long
+                elif current_features > expected_features:
+                    data_list = data_list[:expected_features]
+                    st.warning(f"⚠️ Input was too long. Truncated to {expected_features} points.")
+
+                # Create final array
+                features = np.array(data_list).reshape(1, -1)
+
+                # --- STEP 3: VISUALIZE ---
+                st.subheader("2. Signal Visualization")
+                # We show the padded signal so the user sees exactly what the model sees
+                st.line_chart(pd.DataFrame(data_list, columns=["Amplitude"]))
+
+                # --- STEP 4: PREDICT ---
                 raw_prediction = model.predict(features)[0]
                 
-                # --- Interpretation ---
+                # Interpret Result
                 st.subheader("3. Result")
                 threshold = 0.5 
                 result_class = 1 if raw_prediction > threshold else 0
                 
                 col1, col2 = st.columns(2)
-                
                 with col1:
                     st.metric("Raw Score", f"{raw_prediction:.4f}")
-                
                 with col2:
                     if result_class == 1:
                         st.error("Prediction: Abnormal (1)")
                     else:
                         st.success("Prediction: Normal (0)")
                         
-                st.info(f"Note: This model uses a threshold of {threshold}. Scores above this are classified as Abnormal.")
-
-        except ValueError:
-            st.error("❌ Format Error: Could not convert input to numbers. Check for letters or special characters.")
-        except Exception as e:
-            st.error(f"❌ Error: {e}")
-
-# Sidebar
-st.sidebar.header("About")
-st.sidebar.info("This application is deployed from the GitHub repository: ML_Projects/ECG_Heartbeat_Linear_Regression_Binary_Classifier")
+            except Exception as e:
+                st.error(f"❌ Prediction Error: {e}")
