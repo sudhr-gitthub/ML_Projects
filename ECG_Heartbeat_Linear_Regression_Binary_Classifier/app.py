@@ -2,6 +2,7 @@ import streamlit as st
 import joblib
 import numpy as np
 import pandas as pd
+import os
 
 # Page Configuration
 st.set_page_config(
@@ -10,15 +11,22 @@ st.set_page_config(
     layout="centered"
 )
 
-# --- 1. Load the Model ---
+# --- 1. Load the Model (FIXED PATHING) ---
 @st.cache_resource
 def load_model():
     try:
-        # We assume app.py is in the same folder as the .pkl file
-        model = joblib.load('ecg_classifier.pkl')
+        # Get the absolute path of the directory where this app.py file is located
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # Construct the full path to the pickle file
+        model_path = os.path.join(current_dir, 'ecg_classifier.pkl')
+        
+        # Load the model
+        model = joblib.load(model_path)
         return model
     except FileNotFoundError:
-        st.error("⚠️ Model file 'ecg_classifier.pkl' not found. Please ensure it is in the same directory as app.py.")
+        st.error(f"⚠️ Model file not found at: {model_path}")
+        st.warning("Please ensure 'ecg_classifier.pkl' is committed to the same folder as 'app.py' in your GitHub repository.")
         return None
     except Exception as e:
         st.error(f"Error loading model: {e}")
@@ -40,7 +48,6 @@ st.divider()
 st.subheader("1. Input ECG Signal")
 st.caption("Paste your signal data below (e.g., 0.9, 0.5, 0.1, ...). Standard ECG samples usually have 187 or more points.")
 
-# Default example data (just a placeholder)
 default_csv = "0.0, 0.1, 0.2, 0.3, 0.2, 0.1, 0.0" 
 input_data = st.text_area("Paste CSV Data Here:", height=150, placeholder=default_csv)
 
@@ -54,7 +61,7 @@ if st.button("Analyze Heartbeat", type="primary"):
             clean_input = input_data.replace('\n', ',')
             data_list = [float(x.strip()) for x in clean_input.split(',') if x.strip()]
             
-            # Convert to numpy array for the model (1 sample, n features)
+            # Convert to numpy array
             features = np.array(data_list).reshape(1, -1)
             
             # --- Visualization ---
@@ -68,10 +75,6 @@ if st.button("Analyze Heartbeat", type="primary"):
                 
                 # --- Interpretation ---
                 st.subheader("3. Result")
-                
-                # Since it is Linear Regression used as a Classifier:
-                # We interpret values closer to 1 as "Class 1" and 0 as "Class 0"
-                # You can adjust this threshold if your model was trained differently.
                 threshold = 0.5 
                 result_class = 1 if raw_prediction > threshold else 0
                 
