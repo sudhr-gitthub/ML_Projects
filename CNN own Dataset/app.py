@@ -9,13 +9,18 @@ import os
 st.set_page_config(page_title="CNN Classifier", layout="centered")
 
 st.title("CNN Multi-Class Image Classifier")
-st.write("Upload an image to classify it using your custom model.")
+# Google Drive File ID
+file_id = '1E6-TihB-gCnDa910ZcwCFunW6xdoasmd'
+model_file = 'Own_dataset_cnn_multi-class_classifier.h5'
 
-# --- CONSTANTS ---
-# The ID is the part of the link between /d/ and /view
-# Link: https://drive.google.com/file/d/1E6-TihB-gCnDa910ZcwCFunW6xdoasmd/view?usp=sharing
-FILE_ID = '1E6-TihB-gCnDa910ZcwCFunW6xdoasmd'
-MODEL_FILENAME = 'Own_dataset_cnn_multi-class_classifier.h5'
+@st.cache_resource
+def load_model():
+    if not os.path.exists(model_file):
+        url = f'https://drive.google.com/uc?id={file_id}'
+        gdown.download(url, model_file, quiet=False)
+    
+    model = tf.keras.models.load_model(model_file)
+    return model
 
 @st.cache_resource
 def load_model():
