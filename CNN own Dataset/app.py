@@ -1,98 +1,85 @@
 import streamlit as st
-import tensorflow as tf
-from PIL import Image, ImageOps
-import numpy as np
-import gdown
 import os
 
-# Set page config
-st.set_page_config(page_title="CNN Classifier", layout="centered")
+st.set_page_config(page_title="Debug Mode", layout="centered")
+st.title("Diagnostic Mode: CNN Classifier")
 
-st.title("CNN Multi-Class Image Classifier")
-# Google Drive File ID
-file_id = '1E6-TihB-gCnDa910ZcwCFunW6xdoasmd'
-model_file = 'Own_dataset_cnn_multi-class_classifier.h5'
+# --- WRAPPER TO CATCH STARTUP ERRORS ---
+try:
+    import tensorflow as tf
+    import numpy as np
+    from PIL import Image, ImageOps
+    import gdown
+    import h5py
 
-@st.cache_resource
-def load_model():
-    if not os.path.exists(model_file):
-        url = f'https://drive.google.com/uc?id={file_id}'
-        gdown.download(url, model_file, quiet=False)
-    
-    model = tf.keras.models.load_model(model_file)
-    return model
+    st.write(f"TensorFlow Version: {tf.__version__}")
+    st.write(f"NumPy Version: {np.__version__}")
 
-@st.cache_resource
-def load_model():
-    # 1. Download if not exists
-    if not os.path.exists(MODEL_FILENAME):
-        url = f'https://drive.google.com/uc?id={FILE_ID}'
-        st.info(f"Downloading model from Google Drive (ID: {FILE_ID})...")
-        gdown.download(url, MODEL_FILENAME, quiet=False)
+    # --- 1. MODEL CONFIG ---
+    # Link: https://drive.google.com/file/d/1E6-TihB-gCnDa910ZcwCFunW6xdoasmd/view?usp=sharing
+    FILE_ID = '1E6-TihB-gCnDa910ZcwCFunW6xdoasmd'
+    MODEL_FILENAME = 'Own_dataset_cnn_multi-class_classifier.h5'
 
-    # 2. Check if file is valid (larger than 1KB)
-    if os.path.exists(MODEL_FILENAME):
-        file_size = os.path.getsize(MODEL_FILENAME)
-        if file_size < 1000: # Less than 1KB means it's likely a corruption/error file
-            st.error("Error: The downloaded model file is too small. It might be a Google Drive permission error.")
-            st.stop()
-    else:
-        st.error("Error: Model file failed to download.")
-        st.stop()
-
-    # 3. Load Model
-    try:
-        model = tf.keras.models.load_model(MODEL_FILENAME)
-        return model
-    except Exception as e:
-        st.error(f"Critical Error loading model: {e}")
-        st.stop()
-        return None
-
-# Load the model
-model = load_model()
-
-if model:
-    st.success("Model loaded successfully!")
-
-# Upload image
-file = st.file_uploader("Please upload an image file", type=["jpg", "png", "jpeg"])
-
-def import_and_predict(image_data, model):
-    # Resize to the size your model expects (224x224 is common, but change if yours is 180x180 etc)
-    size = (224, 224)    
-    image = ImageOps.fit(image_data, size, Image.Resampling.LANCZOS)
-    img = np.asarray(image)
-    
-    # Normalize
-    img = img / 255.0
-    
-    # Reshape
-    img_reshape = img[np.newaxis, ...]
-    
-    # Predict
-    prediction = model.predict(img_reshape)
-    return prediction
-
-if file is not None:
-    image = Image.open(file)
-    st.image(image, use_column_width=True)
-    
-    if model:
-        predictions = import_and_predict(image, model)
+    # --- 2. DOWNLOADER ---
+    @st.cache_resource
+    def load_model_file():
+        if not os.path.exists(MODEL_FILENAME):
+            url = f'https://drive.google.com/uc?id={FILE_ID}'
+            st.warning(f"Attempting to download model from Drive ID: {FILE_ID}...")
+            # quiet=False to see progress in logs
+            gdown.download(url, MODEL_FILENAME, quiet=False)
         
-        # --- CLASS NAMES ---
-        # YOU MUST EDIT THIS LIST TO MATCH YOUR TRAINING FOLDER NAMES
-        class_names = ['Class 0', 'Class 1', 'Class 2', 'Class 3'] 
-        
-        score = tf.nn.softmax(predictions[0])
-        
-        # Safe prediction display
-        if len(predictions[0]) <= len(class_names):
-            predicted_class = class_names[np.argmax(predictions[0])]
-            confidence = 100 * np.max(score)
-            st.write(f"## Prediction: {predicted_class}")
-            st.write(f"Confidence: {confidence:.2f}%")
+        # Verify file
+        if os.path.exists(MODEL_FILENAME):
+            size = os.path.getsize(MODEL_FILENAME)
+            st.success(f"File found! Size: {size/1024:.2f} KB")
+            if size < 2000: # If less than 2KB, it's likely an error text file, not a model
+                st.error("CRITICAL: File is too small. Google Drive likely blocked the download (Quota Exceeded).")
+                st.stop()
         else:
-            st.write(f"## Prediction Raw Output: {predictions}")
-            st.warning(f"Model predicted {len(predictions[0])} classes, but you only defined {len(class_names)} in the 'class_names' list. Please update line 78 in app.py.")
+            st.error("CRITICAL: Download failed completely.")
+            st.stop()
+            
+        return MODEL_FILENAME
+
+    model_path = load_model_file()
+
+    # --- 3. MODEL LOADER ---
+    # We load this outside the cache first to see if it crashes
+    st.write("Attempting to load Keras model...")
+    model = tf.keras.models.load_model(model_path)
+    st.success("Model Loaded Successfully! App is ready.")
+
+    # --- 4. PREDICTION LOGIC ---
+    file = st.file_uploader("Upload an image", type=["jpg", "png", "jpeg"])
+
+    if file is not None:
+        image = Image.open(file)
+        st.image(image, width=300)
+        
+        # Resize and Scale
+        target_size = (224, 224) # Standard input size
+        image = ImageOps.fit(image, target_size, Image.Resampling.LANCZOS)
+        img_array = np.asarray(image)
+        img_array = img_array / 255.0
+        img_reshape = img_array[np.newaxis, ...]
+        
+        prediction = model.predict(img_reshape)
+        st.write("Raw Prediction:", prediction)
+        
+        # Class names (Edit these!)
+        class_names = ['Class A', 'Class B', 'Class C'] 
+        idx = np.argmax(prediction[0])
+        
+        if idx < len(class_names):
+            st.write(f"## Result: {class_names[idx]}")
+        else:
+            st.write(f"## Result: Class Index {idx}")
+
+except Exception as e:
+    # THIS IS THE IMPORTANT PART
+    st.error("An error occurred during execution:")
+    st.code(str(e))
+    # Print detailed traceback in logs
+    import traceback
+    traceback.print_exc()
