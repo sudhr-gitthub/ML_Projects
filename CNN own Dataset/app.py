@@ -2,21 +2,33 @@ import streamlit as st
 import tensorflow as tf
 from PIL import Image, ImageOps
 import numpy as np
+import gdown
+import os
 
 # Set the title of the app
 st.title("CNN Multi-Class Image Classifier")
 st.write("Upload an image to classify it using your custom model.")
 
-# Load the model with caching to prevent reloading on every run
+# Define the Google Drive file ID and output filename
+# Derived from your link: https://drive.google.com/file/d/1E6-TihB-gCnDa910ZcwCFunW6xdoasmd/view?usp=sharing
+file_id = '1E6-TihB-gCnDa910ZcwCFunW6xdoasmd'
+model_file = 'Own_dataset_cnn_multi-class_classifier.h5'
+
 @st.cache_resource
 def load_model():
-    # Load the specific model file from your drive
-    model = tf.keras.models.load_model('Own_dataset_cnn_multi-class_classifier.h5')
+    # Check if the file already exists locally; if not, download it
+    if not os.path.exists(model_file):
+        url = f'https://drive.google.com/uc?id={file_id}'
+        gdown.download(url, model_file, quiet=False)
+    
+    # Load the model
+    model = tf.keras.models.load_model(model_file)
     return model
 
-# Load the model
+# Load the model with error handling
 try:
-    model = load_model()
+    with st.spinner('Downloading model from Google Drive... this may take a minute...'):
+        model = load_model()
     st.success("Model loaded successfully!")
 except Exception as e:
     st.error(f"Error loading model: {e}")
@@ -28,41 +40,43 @@ def import_and_predict(image_data, model):
     # ---------------------------------------------------------
     # TODO: UPDATE THESE VALUES TO MATCH YOUR MODEL'S TRAINING
     # ---------------------------------------------------------
-    # 1. Define the input size (e.g., (224, 224), (150, 150), (64, 64))
+    # 1. Define the input size used during training
     target_size = (224, 224) 
     
-    # 2. Resize and preprocess the image
-    size = target_size
-    image = ImageOps.fit(image_data, size, Image.Resampling.LANCZOS)
+    # 2. Resize and preprocess
+    image = ImageOps.fit(image_data, target_size, Image.Resampling.LANCZOS)
     img = np.asarray(image)
     
-    # Normalize the image (if you normalized by dividing by 255 during training)
+    # Normalize (Standard for most CNNs)
     img = img / 255.0
     
-    # Reshape the image to match model input shape: (1, height, width, channels)
+    # Reshape for model input: (1, height, width, channels)
     img_reshape = img[np.newaxis, ...]
     
-    # Make prediction
+    # Predict
     prediction = model.predict(img_reshape)
     return prediction
 
 if file is not None:
-    # Display the uploaded image
     image = Image.open(file)
     st.image(image, use_column_width=True)
     
-    # Make prediction
-    predictions = import_and_predict(image, model)
-    
-    # ---------------------------------------------------------
-    # TODO: UPDATE THIS LIST WITH YOUR ACTUAL CLASS NAMES
-    # ---------------------------------------------------------
-    class_names = ['Class A', 'Class B', 'Class C', 'Class D'] # Replace with your actual labels
-    
-    # Get the class with the highest probability
-    score = tf.nn.softmax(predictions[0])
-    predicted_class = class_names[np.argmax(predictions[0])]
-    confidence = 100 * np.max(score)
-    
-    st.write(f"## Prediction: {predicted_class}")
-    st.write(f"Confidence: {confidence:.2f}%")
+    if model:
+        predictions = import_and_predict(image, model)
+        
+        # ---------------------------------------------------------
+        # TODO: UPDATE THIS LIST WITH YOUR ACTUAL CLASS NAMES
+        # ---------------------------------------------------------
+        class_names = ['Class A', 'Class B', 'Class C'] 
+        
+        # Interpret results
+        score = tf.nn.softmax(predictions[0])
+        
+        # Check if class_names matches prediction output shape
+        if len(class_names) == len(predictions[0]):
+            predicted_class = class_names[np.argmax(predictions[0])]
+            confidence = 100 * np.max(score)
+            st.write(f"## Prediction: {predicted_class}")
+            st.write(f"Confidence: {confidence:.2f}%")
+        else:
+            st.error(f"Error: Model predicted {len(predictions[0])} classes, but you defined {len(class_names)} names in the code.")
