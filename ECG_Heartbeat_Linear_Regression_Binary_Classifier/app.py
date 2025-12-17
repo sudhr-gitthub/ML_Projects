@@ -57,10 +57,18 @@ if st.button("Analyze Heartbeat", type="primary"):
         st.warning("Please enter some data first.")
     else:
         try:
-            # Convert string input to list of floats
-            clean_input = input_data.replace('\n', ',')
-            data_list = [float(x.strip()) for x in clean_input.split(',') if x.strip()]
+            # --- ROBUST CLEANING START ---
+            # 1. Replace newlines with commas
+            clean_str = input_data.replace('\n', ',')
             
+            # 2. Remove common array characters like [ ] ( )
+            for char in ['[', ']', '(', ')']:
+                clean_str = clean_str.replace(char, '')
+            
+            # 3. Split by comma and convert to floats
+            data_list = [float(x.strip()) for x in clean_str.split(',') if x.strip()]
+            # --- ROBUST CLEANING END ---
+
             # Convert to numpy array
             features = np.array(data_list).reshape(1, -1)
             
@@ -92,7 +100,7 @@ if st.button("Analyze Heartbeat", type="primary"):
                 st.info(f"Note: This model uses a threshold of {threshold}. Scores above this are classified as Abnormal.")
 
         except ValueError:
-            st.error("❌ Format Error: Please ensure the input contains only numbers separated by commas.")
+            st.error("❌ Format Error: Could not convert input to numbers. Check for letters or special characters.")
         except Exception as e:
             st.error(f"❌ Error: {e}")
 
