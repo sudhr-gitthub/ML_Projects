@@ -3,42 +3,65 @@ import pandas as pd
 import joblib
 import os
 
-# Set page configuration
-st.set_page_config(page_title="Diabetes Prediction App", layout="centered")
+# 1. Page Configuration
+st.set_page_config(
+    page_title="Diabetes Prediction",
+    page_icon="🏥",
+    layout="centered"
+)
 
+# 2. Load Model Function (Robust Path Handling)
 @st.cache_resource
 def load_model():
-    # Check if file exists to avoid crashing if missing
-    model_path = 'Diabetes (Logistic Regression).pkl'
-    if not os.path.exists(model_path):
-        st.error(f"Model file '{model_path}' not found. Please ensure it is in the same directory as app.py.")
+    # Get the directory where THIS app.py file is located
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # Join the directory with the model file name
+    model_path = os.path.join(current_dir, 'Diabetes (Logistic Regression).pkl')
+    
+    try:
+        model = joblib.load(model_path)
+        return model
+    except FileNotFoundError:
+        st.error(f"⚠️ Model file not found!")
+        st.write(f"The app looked for the file here: `{model_path}`")
+        st.info("Please make sure 'Diabetes (Logistic Regression).pkl' is in the exact same folder as 'app.py'.")
         return None
-    return joblib.load(model_path)
+    except Exception as e:
+        st.error(f"An error occurred while loading the model: {e}")
+        return None
 
+# 3. Main Application
 def main():
     st.title("🏥 Diabetes Prediction Tool")
-    st.write("Enter the patient details below to predict the likelihood of diabetes.")
-
+    st.write("Enter patient details to predict diabetes risk.")
+    
     # Load the model
     model = load_model()
-
+    
     if model:
-        # Create input fields matching the model's feature names: ['age', 'mass', 'insu', 'plas']
-        st.subheader("Patient Data")
+        st.divider()
+        st.subheader("Patient Vitals")
         
+        # Input Columns
         col1, col2 = st.columns(2)
         
         with col1:
-            age = st.number_input("Age (years)", min_value=0, max_value=120, value=30)
-            plas = st.number_input("Glucose Concentration (plas)", min_value=0, max_value=300, value=100)
+            # [cite_start]Feature: age [cite: 1]
+            age = st.number_input("Age", min_value=1, max_value=120, value=30)
+            # [cite_start]Feature: plas (Glucose) [cite: 1]
+            plas = st.number_input("Glucose Concentration (plas)", min_value=0, max_value=500, value=100)
             
         with col2:
-            mass = st.number_input("Body Mass Index (mass)", min_value=0.0, max_value=70.0, value=25.0)
-            insu = st.number_input("Serum Insulin (insu)", min_value=0, max_value=900, value=80)
+            # [cite_start]Feature: mass (BMI) [cite: 1]
+            mass = st.number_input("BMI (mass)", min_value=0.0, max_value=100.0, value=25.0, format="%.1f")
+            # [cite_start]Feature: insu (Insulin) [cite: 1]
+            insu = st.number_input("Serum Insulin (insu)", min_value=0, max_value=1000, value=80)
 
-        # Create a button for prediction
-        if st.button("Predict Result", type="primary"):
-            # Prepare the input data as a DataFrame (required for feature name matching)
+        # Prediction Button
+        if st.button("Predict Status", type="primary", use_container_width=True):
+            
+            # [cite_start]Prepare data frame with exact feature names expected by the model [cite: 1]
             input_data = pd.DataFrame({
                 'age': [age],
                 'mass': [mass],
@@ -46,21 +69,21 @@ def main():
                 'plas': [plas]
             })
 
-            # Make prediction
-            try:
-                prediction = model.predict(input_data)[0]
-                
-                # Display result
-                st.markdown("---")
-                if prediction == 'tested_positive':
-                    st.error(f"**Prediction:** {prediction}")
-                    st.warning("The model predicts the patient **has diabetes**.")
-                else:
-                    st.success(f"**Prediction:** {prediction}")
-                    st.info("The model predicts the patient is **negative for diabetes**.")
-                    
-            except Exception as e:
-                st.error(f"An error occurred during prediction: {e}")
+            # Make Prediction
+            prediction = model.predict(input_data)[0]
+            
+            # Display Result
+            st.divider()
+            st.subheader("Result:")
+            
+            # [cite_start]Classes are 'tested_negative' and 'tested_positive' [cite: 1]
+            if prediction == 'tested_positive':
+                st.error(f"**{prediction}**")
+                st.warning("The model suggests a high likelihood of diabetes.")
+            else:
+                st.success(f"**{prediction}**")
+                st.balloons()
+                st.info("The model suggests a low likelihood of diabetes.")
 
 if __name__ == "__main__":
     main()
