@@ -5,52 +5,64 @@ import numpy as np
 import gdown
 import os
 
-# Set the title of the app
+# Set page config
+st.set_page_config(page_title="CNN Classifier", layout="centered")
+
 st.title("CNN Multi-Class Image Classifier")
 st.write("Upload an image to classify it using your custom model.")
 
-# Define the Google Drive file ID and output filename
-# Derived from your link: https://drive.google.com/file/d/1E6-TihB-gCnDa910ZcwCFunW6xdoasmd/view?usp=sharing
-file_id = '1E6-TihB-gCnDa910ZcwCFunW6xdoasmd'
-model_file = 'Own_dataset_cnn_multi-class_classifier.h5'
+# --- CONSTANTS ---
+# The ID is the part of the link between /d/ and /view
+# Link: https://drive.google.com/file/d/1E6-TihB-gCnDa910ZcwCFunW6xdoasmd/view?usp=sharing
+FILE_ID = '1E6-TihB-gCnDa910ZcwCFunW6xdoasmd'
+MODEL_FILENAME = 'Own_dataset_cnn_multi-class_classifier.h5'
 
 @st.cache_resource
 def load_model():
-    # Check if the file already exists locally; if not, download it
-    if not os.path.exists(model_file):
-        url = f'https://drive.google.com/uc?id={file_id}'
-        gdown.download(url, model_file, quiet=False)
-    
-    # Load the model
-    model = tf.keras.models.load_model(model_file)
-    return model
+    # 1. Download if not exists
+    if not os.path.exists(MODEL_FILENAME):
+        url = f'https://drive.google.com/uc?id={FILE_ID}'
+        st.info(f"Downloading model from Google Drive (ID: {FILE_ID})...")
+        gdown.download(url, MODEL_FILENAME, quiet=False)
 
-# Load the model with error handling
-try:
-    with st.spinner('Downloading model from Google Drive... this may take a minute...'):
-        model = load_model()
+    # 2. Check if file is valid (larger than 1KB)
+    if os.path.exists(MODEL_FILENAME):
+        file_size = os.path.getsize(MODEL_FILENAME)
+        if file_size < 1000: # Less than 1KB means it's likely a corruption/error file
+            st.error("Error: The downloaded model file is too small. It might be a Google Drive permission error.")
+            st.stop()
+    else:
+        st.error("Error: Model file failed to download.")
+        st.stop()
+
+    # 3. Load Model
+    try:
+        model = tf.keras.models.load_model(MODEL_FILENAME)
+        return model
+    except Exception as e:
+        st.error(f"Critical Error loading model: {e}")
+        st.stop()
+        return None
+
+# Load the model
+model = load_model()
+
+if model:
     st.success("Model loaded successfully!")
-except Exception as e:
-    st.error(f"Error loading model: {e}")
 
-# Upload image widget
+# Upload image
 file = st.file_uploader("Please upload an image file", type=["jpg", "png", "jpeg"])
 
 def import_and_predict(image_data, model):
-    # ---------------------------------------------------------
-    # TODO: UPDATE THESE VALUES TO MATCH YOUR MODEL'S TRAINING
-    # ---------------------------------------------------------
-    # 1. Define the input size used during training
-    target_size = (224, 224) 
-    
-    # 2. Resize and preprocess
-    image = ImageOps.fit(image_data, target_size, Image.Resampling.LANCZOS)
+    # Resize to the size your model expects (224x224 is common, but change if yours is 180x180 etc)
+    size = (224, 224)    
+    image = ImageOps.fit(image_data, size, Image.Resampling.LANCZOS)
     img = np.asarray(image)
     
-    # Normalize (Standard for most CNNs)
+    # Normalize
     img = img / 255.0
     
-    # Reshape for model input: (1, height, width, channels)
+    # Reshape
     img_reshape = img[np.newaxis, ...]
     
     # Predict
@@ -64,19 +76,18 @@ if file is not None:
     if model:
         predictions = import_and_predict(image, model)
         
-        # ---------------------------------------------------------
-        # TODO: UPDATE THIS LIST WITH YOUR ACTUAL CLASS NAMES
-        # ---------------------------------------------------------
-        class_names = ['Class A', 'Class B', 'Class C'] 
+        # --- CLASS NAMES ---
+        # YOU MUST EDIT THIS LIST TO MATCH YOUR TRAINING FOLDER NAMES
+        class_names = ['Class 0', 'Class 1', 'Class 2', 'Class 3'] 
         
-        # Interpret results
         score = tf.nn.softmax(predictions[0])
         
-        # Check if class_names matches prediction output shape
-        if len(class_names) == len(predictions[0]):
+        # Safe prediction display
+        if len(predictions[0]) <= len(class_names):
             predicted_class = class_names[np.argmax(predictions[0])]
             confidence = 100 * np.max(score)
             st.write(f"## Prediction: {predicted_class}")
             st.write(f"Confidence: {confidence:.2f}%")
         else:
-            st.error(f"Error: Model predicted {len(predictions[0])} classes, but you defined {len(class_names)} names in the code.")
+            st.write(f"## Prediction Raw Output: {predictions}")
+            st.warning(f"Model predicted {len(predictions[0])} classes, but you only defined {len(class_names)} in the 'class_names' list. Please update line 78 in app.py.")
