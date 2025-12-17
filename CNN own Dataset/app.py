@@ -1,85 +1,87 @@
 import streamlit as st
+import tensorflow as tf
+from PIL import Image, ImageOps
+import numpy as np
+import gdown
 import os
 
-st.set_page_config(page_title="Debug Mode", layout="centered")
-st.title("Diagnostic Mode: CNN Classifier")
+# --- PAGE CONFIG ---
+st.set_page_config(page_title="CNN Classifier", layout="centered")
+st.title("CNN Multi-Class Image Classifier")
+st.write("Upload an image to classify it using your custom model.")
 
-# --- WRAPPER TO CATCH STARTUP ERRORS ---
-try:
-    import tensorflow as tf
-    import numpy as np
-    from PIL import Image, ImageOps
-    import gdown
-    import h5py
+# --- CONSTANTS ---
+# Model file ID from your Google Drive link
+FILE_ID = '1E6-TihB-gCnDa910ZcwCFunW6xdoasmd'
+MODEL_FILENAME = 'Own_dataset_cnn_multi-class_classifier.h5'
 
-    st.write(f"TensorFlow Version: {tf.__version__}")
-    st.write(f"NumPy Version: {np.__version__}")
-
-    # --- 1. MODEL CONFIG ---
-    # Link: https://drive.google.com/file/d/1E6-TihB-gCnDa910ZcwCFunW6xdoasmd/view?usp=sharing
-    FILE_ID = '1E6-TihB-gCnDa910ZcwCFunW6xdoasmd'
-    MODEL_FILENAME = 'Own_dataset_cnn_multi-class_classifier.h5'
-
-    # --- 2. DOWNLOADER ---
-    @st.cache_resource
-    def load_model_file():
-        if not os.path.exists(MODEL_FILENAME):
-            url = f'https://drive.google.com/uc?id={FILE_ID}'
-            st.warning(f"Attempting to download model from Drive ID: {FILE_ID}...")
-            # quiet=False to see progress in logs
+# --- MODEL LOADING LOGIC ---
+@st.cache_resource
+def load_model():
+    # 1. Download the file if it doesn't exist
+    if not os.path.exists(MODEL_FILENAME):
+        url = f'https://drive.google.com/uc?id={FILE_ID}'
+        with st.spinner("Downloading model from Google Drive..."):
             gdown.download(url, MODEL_FILENAME, quiet=False)
-        
-        # Verify file
-        if os.path.exists(MODEL_FILENAME):
-            size = os.path.getsize(MODEL_FILENAME)
-            st.success(f"File found! Size: {size/1024:.2f} KB")
-            if size < 2000: # If less than 2KB, it's likely an error text file, not a model
-                st.error("CRITICAL: File is too small. Google Drive likely blocked the download (Quota Exceeded).")
-                st.stop()
-        else:
-            st.error("CRITICAL: Download failed completely.")
+
+    # 2. Check if download was successful and valid
+    if os.path.exists(MODEL_FILENAME):
+        # Check file size. If < 2KB, it's likely a Google Drive error page, not the model.
+        file_size = os.path.getsize(MODEL_FILENAME)
+        if file_size < 2000: 
+            st.error("Error: The model file downloaded is too small (likely a permission error). Please try uploading the .h5 file directly to GitHub instead.")
             st.stop()
-            
-        return MODEL_FILENAME
+    else:
+        st.error("Error: Model file failed to download.")
+        st.stop()
 
-    model_path = load_model_file()
+    # 3. Load the model
+    try:
+        model = tf.keras.models.load_model(MODEL_FILENAME)
+        return model
+    except Exception as e:
+        st.error(f"Error loading Keras model: {e}")
+        return None
 
-    # --- 3. MODEL LOADER ---
-    # We load this outside the cache first to see if it crashes
-    st.write("Attempting to load Keras model...")
-    model = tf.keras.models.load_model(model_path)
-    st.success("Model Loaded Successfully! App is ready.")
+# Load the model
+model = load_model()
 
-    # --- 4. PREDICTION LOGIC ---
-    file = st.file_uploader("Upload an image", type=["jpg", "png", "jpeg"])
+if model:
+    st.success("Model loaded successfully!")
 
-    if file is not None:
-        image = Image.open(file)
-        st.image(image, width=300)
+# --- PREDICTION LOGIC ---
+file = st.file_uploader("Please upload an image file", type=["jpg", "png", "jpeg"])
+
+def import_and_predict(image_data, model):
+    # 1. Resize (Update (224,224) if your model uses a different size like 150x150)
+    size = (224, 224)    
+    image = ImageOps.fit(image_data, size, Image.Resampling.LANCZOS)
+    
+    # 2. Convert to Array & Normalize
+    img = np.asarray(image)
+    img = img / 255.0
+    
+    # 3. Reshape (1, Height, Width, Channels)
+    img_reshape = img[np.newaxis, ...]
+    
+    # 4. Predict
+    prediction = model.predict(img_reshape)
+    return prediction
+
+if file is not None:
+    image = Image.open(file)
+    st.image(image, use_column_width=True)
+    
+    if model:
+        predictions = import_and_predict(image, model)
         
-        # Resize and Scale
-        target_size = (224, 224) # Standard input size
-        image = ImageOps.fit(image, target_size, Image.Resampling.LANCZOS)
-        img_array = np.asarray(image)
-        img_array = img_array / 255.0
-        img_reshape = img_array[np.newaxis, ...]
+        # --- CLASS NAMES (YOU MUST EDIT THIS) ---
+        # Update this list to match the folders in your dataset
+        class_names = ['Class 0', 'Class 1', 'Class 2', 'Class 3'] 
         
-        prediction = model.predict(img_reshape)
-        st.write("Raw Prediction:", prediction)
+        score = tf.nn.softmax(predictions[0])
+        predicted_class = class_names[np.argmax(predictions[0])]
+        confidence = 100 * np.max(score)
         
-        # Class names (Edit these!)
-        class_names = ['Class A', 'Class B', 'Class C'] 
-        idx = np.argmax(prediction[0])
-        
-        if idx < len(class_names):
-            st.write(f"## Result: {class_names[idx]}")
-        else:
-            st.write(f"## Result: Class Index {idx}")
-
-except Exception as e:
-    # THIS IS THE IMPORTANT PART
-    st.error("An error occurred during execution:")
-    st.code(str(e))
-    # Print detailed traceback in logs
-    import traceback
-    traceback.print_exc()
+        st.write(f"## Prediction: {predicted_class}")
+        st.write(f"Confidence: {confidence:.2f}%")
