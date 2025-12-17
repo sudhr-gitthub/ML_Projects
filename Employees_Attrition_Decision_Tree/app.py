@@ -13,18 +13,20 @@ st.set_page_config(
 # --- Load Model ---
 @st.cache_resource
 def load_model():
-    # Attempt to load the model locally
-    # Ensure 'employees_attrition_model.pkl' is in the same folder as app.py
-    model_path = "employees_attrition_model.pkl" 
+    # Get the directory where the current app.py file is located
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # Construct the full path to the model file
+    model_path = os.path.join(current_dir, "employees_attrition_model.pkl")
     
     if not os.path.exists(model_path):
-        st.error(f"Model file not found at {model_path}. Please ensure the .pkl file is uploaded to the repository.")
+        st.error(f"Model file not found at: {model_path}")
+        st.warning("Please ensure 'employees_attrition_model.pkl' is in the same directory as 'app.py'.")
         return None
 
     with open(model_path, 'rb') as file:
         model = pickle.load(file)
     return model
-
 model = load_model()
 
 # --- Main Interface ---
