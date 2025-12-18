@@ -1,55 +1,50 @@
 import streamlit as st
 import pickle
 import numpy as np
+from sklearn.metrics import pairwise_distances_argmin
 
 # ---------------------------------------------------
-# Load the trained hierarchical clustering model
+# Load trained objects
 # ---------------------------------------------------
 @st.cache_resource
 def load_model():
-    with open("mall_customer_hier.pkl", "rb") as file:
-        model = pickle.load(file)
-    return model
+    with open("mall_customer_hier.pkl", "rb") as f:
+        data = pickle.load(f)
+    return data
 
-model = load_model()
+data = load_model()
+
+# EXPECTED STRUCTURE:
+# data = {
+#   "centroids": np.array([...]),
+# }
+
+centroids = data["centroids"]
 
 # ---------------------------------------------------
 # Streamlit UI
 # ---------------------------------------------------
-st.set_page_config(
-    page_title="Mall Customer Segmentation",
-    page_icon="🛍️",
-    layout="centered"
-)
+st.set_page_config(page_title="Mall Customer Segmentation", page_icon="🛍️")
 
-st.title("🛍️ Mall Customer Segmentation App")
-st.write("Predict the **customer cluster** using Hierarchical Clustering")
+st.title("🛍️ Mall Customer Segmentation")
+st.write("Assign a new customer to the nearest cluster")
 
 # ---------------------------------------------------
-# User Inputs
+# Inputs
 # ---------------------------------------------------
 age = st.slider("Age", 18, 70, 30)
-annual_income = st.slider("Annual Income (k$)", 10, 150, 60)
-spending_score = st.slider("Spending Score (1–100)", 1, 100, 50)
+income = st.slider("Annual Income (k$)", 10, 150, 60)
+score = st.slider("Spending Score (1–100)", 1, 100, 50)
 
 # ---------------------------------------------------
 # Prediction
 # ---------------------------------------------------
-if st.button("Predict Customer Cluster"):
-    input_data = np.array([[age, annual_income, spending_score]])
+if st.button("Predict Cluster"):
+    user = np.array([[age, income, score]])
 
-    cluster = model.fit_predict(input_data)[0]
+    cluster = pairwise_distances_argmin(user, centroids)[0]
 
-    st.success(f"🧠 Predicted Customer Cluster: **Cluster {cluster}**")
+    st.success(f"🧠 Customer belongs to **Cluster {cluster}**")
 
-    # Optional explanation
-    st.info(
-        "Clusters help businesses understand customer behavior for "
-        "targeted marketing and personalized offers."
-    )
-
-# ---------------------------------------------------
-# Footer
-# ---------------------------------------------------
 st.markdown("---")
-st.caption("Developed using Streamlit & Scikit-learn")
+st.caption("Hierarchical Clustering | Streamlit App")
