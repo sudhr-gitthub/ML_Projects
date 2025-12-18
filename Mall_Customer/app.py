@@ -3,104 +3,144 @@ import joblib
 import os
 import pandas as pd
 import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
 
 # Page Configuration
-st.set_page_config(
-    page_title="Mall Customer Segmentation",
-    page_icon="🛍️",
-    layout="wide"
-)
+st.set_page_config(page_title="Mall Customer Segmentation", page_icon="🛍️", layout="wide")
 
 # --- Constants ---
-# FIX: Get the absolute path of the directory where this script is located
 current_dir = os.path.dirname(os.path.abspath(__file__))
-# Construct the full path to the model file
-MODEL_PATH = os.path.join(current_dir, 'mall_customer_hier.pkl')
+CLUSTERING_MODEL_PATH = os.path.join(current_dir, 'mall_customer_hier.pkl')
+PREDICTOR_MODEL_PATH = os.path.join(current_dir, 'mall_customer_predictor.pkl')
+DATA_PATH = os.path.join(current_dir, 'Mall_Customers.csv')
 
-# --- Load Model Function ---
+# --- Load Functions ---
 @st.cache_resource
-def load_model():
-    """
-    Loads the machine learning model safely using absolute paths.
-    """
-    if not os.path.exists(MODEL_PATH):
-        # Return None and let the main function handle the error display
-        return None
-    try:
-        model = joblib.load(MODEL_PATH)
-        return model
-    except Exception as e:
-        st.error(f"Error loading model: {e}")
-        return None
+def load_data():
+    if os.path.exists(DATA_PATH):
+        return pd.read_csv(DATA_PATH)
+    return None
 
-# --- Main Application Logic ---
+@st.cache_resource
+def load_clustering_model():
+    if os.path.exists(CLUSTERING_MODEL_PATH):
+        return joblib.load(CLUSTERING_MODEL_PATH)
+    return None
+
+@st.cache_resource
+def load_predictor_model():
+    if os.path.exists(PREDICTOR_MODEL_PATH):
+        return joblib.load(PREDICTOR_MODEL_PATH)
+    return None
+
 def main():
     st.title("🛍️ Mall Customer Clustering Inspector")
-    st.write("View the details of the Hierarchical Clustering model used for customer segmentation.")
-
-    # Load the model
-    model = load_model()
-
-    # Check if model loaded successfully
-    if model is None:
-        st.error(f"Could not find model file at: `{MODEL_PATH}`")
-        st.warning(f"Script location: `{current_dir}`")
-        st.info("Please ensure 'mall_customer_hier.pkl' is inside the 'Mall_Customer' folder alongside 'app.py'.")
-        return
-
-    # --- Sidebar ---
-    st.sidebar.header("Model Status")
-    st.sidebar.success("Model Loaded Successfully!")
     
-    # --- Model Details Section ---
-    st.subheader("📊 Model Configuration")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.metric("Algorithm", "Agglomerative Clustering")
-        
-    with col2:
-        # Safely access attributes (some might be None depending on training parameters)
-        n_clusters = getattr(model, 'n_clusters_', 'N/A')
-        st.metric("Clusters Found", n_clusters)
-        
-    with col3:
-        linkage = getattr(model, 'linkage', 'ward')
-        st.metric("Linkage Type", linkage.capitalize())
+    # Load Resources
+    df = load_data()
+    c_model = load_clustering_model()
+    p_model = load_predictor_model()
 
-    st.divider()
+    # --- Sidebar Status ---
+    st.sidebar.header("System Status")
+    if c_model:
+        st.sidebar.success("✅ Clustering Model Loaded")
+    else:
+        st.sidebar.error("❌ Clustering Model Missing")
+        
+    if df is not None:
+        st.sidebar.success("✅ Dataset Loaded")
+    else:
+        st.sidebar.warning("⚠️ Dataset Missing (Mall_Customers.csv)")
 
-    # --- Educational Logic ---
-    st.subheader("🤔 How to Predict New Customers?")
-    
-    st.info(
-        """
-        **Note on Hierarchical Clustering:** This specific algorithm (`AgglomerativeClustering`) groups 
-        the data provided during training but does not have a standard `.predict()` function for new customers.
-        """
-    )
-    
-    st.markdown("### Recommended Next Steps for Deployment")
-    st.markdown("""
-    To enable a live prediction feature (e.g., inputting Income/Score to get a Cluster ID):
-    1.  **Train a Classifier:** Extract the cluster labels from this model and train a **K-Nearest Neighbors (KNN)** or **Random Forest** classifier on them.
-    2.  **Use the Classifier:** Save that classifier and use it here to predict new inputs.
-    """)
+    # --- Tabs ---
+    tab1, tab2, tab3 = st.tabs(["📊 Visualizations", "🔮 Predict Cluster", "📋 Data Overview"])
 
-    # --- Cluster Distribution Visualization ---
-    if hasattr(model, 'labels_'):
-        st.subheader("📉 Saved Training Data Distribution")
-        st.write("Below is the distribution of customers across clusters from the saved model state:")
-        
-        labels = model.labels_
-        unique, counts = np.unique(labels, return_counts=True)
-        df_counts = pd.DataFrame({'Cluster ID': unique, 'Customer Count': counts})
-        
-        st.bar_chart(df_counts.set_index('Cluster ID'))
-        
-        with st.expander("View Raw Cluster Labels"):
-            st.write(labels)
+    # --- TAB 1: VISUALIZATIONS ---
+    with tab1:
+        if c_model and df is not None:
+            # Prepare Data
+            # Ensure we don't overwrite original df if re-running
+            plot_df = df.copy()
+            plot_df['Cluster'] = c_model.labels_
+            plot_df['Cluster'] = plot_df['Cluster'].astype(str) # Convert to string for discrete colors
+            
+            # Layout Columns
+            col_viz1, col_viz2 = st.columns([3, 1])
+            
+            with col_viz1:
+                st.subheader("Interactive Cluster Map")
+                # 2D Scatter Plot
+                fig_2d = px.scatter(
+                    plot_df,
+                    x='Annual Income (k$)',
+                    y='Spending Score (1-100)',
+                    color='Cluster',
+                    symbol='Cluster',
+                    hover_data=['Age', 'Gender'],
+                    title='Customer Segments: Income vs Spending',
+                    template='plotly_white',
+                    size_max=10
+                )
+                fig_2d.update_traces(marker=dict(size=12, line=dict(width=1, color='DarkSlateGrey')))
+                st.plotly_chart(fig_2d, use_container_width=True)
+
+            with col_viz2:
+                st.subheader("Distribution")
+                # Donut Chart
+                fig_pie = px.pie(
+                    plot_df, 
+                    names='Cluster', 
+                    title='Size of Clusters', 
+                    hole=0.4,
+                    color_discrete_sequence=px.colors.qualitative.Set2
+                )
+                fig_pie.update_layout(showlegend=False)
+                st.plotly_chart(fig_pie, use_container_width=True)
+
+            st.divider()
+
+            # 3D Plot (Only if Age exists)
+            if 'Age' in plot_df.columns:
+                st.subheader("🧊 3D Perspective (Age, Income, Score)")
+                fig_3d = px.scatter_3d(
+                    plot_df,
+                    x='Annual Income (k$)',
+                    y='Spending Score (1-100)',
+                    z='Age',
+                    color='Cluster',
+                    opacity=0.8,
+                    title='3D Customer Segments'
+                )
+                st.plotly_chart(fig_3d, use_container_width=True)
+
+        elif not df:
+            st.error("Please upload 'Mall_Customers.csv' to the folder to see the visualizations.")
+            st.info("The model stores labels, but we need the original Income/Score data to plot the dots!")
+
+    # --- TAB 2: PREDICTION ---
+    with tab2:
+        st.header("Predict Customer Segment")
+        if p_model:
+            col1, col2 = st.columns(2)
+            with col1:
+                income = st.number_input("Annual Income (k$)", min_value=0, max_value=200, value=50)
+            with col2:
+                score = st.number_input("Spending Score (1-100)", min_value=1, max_value=100, value=50)
+            
+            if st.button("Predict Cluster", type="primary"):
+                prediction = p_model.predict([[income, score]])
+                cluster_id = prediction[0]
+                st.success(f"This customer belongs to **Cluster {cluster_id}**")
+        else:
+            st.warning("To enable predictions, run 'build_predictor.py' locally first.")
+
+    # --- TAB 3: DATA OVERVIEW ---
+    with tab3:
+        if df is not None:
+            st.dataframe(df.head())
+            st.caption("First 5 rows of the dataset")
 
 if __name__ == "__main__":
     main()
