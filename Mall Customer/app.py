@@ -13,7 +13,7 @@ st.title("Mall Customer Segmentation - Hierarchical Clustering")
 @st.cache_data
 def load_data():
     try:
-        df = joblib.load('mall_customers.pkl')
+        df = joblib.load('mall_customer_hier.pkl')
         return df
     except FileNotFoundError:
         st.error("Error: 'mall_customers.pkl' not found. Please ensure the file is generated in the Colab environment.")
