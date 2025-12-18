@@ -1,48 +1,36 @@
+# app.py
 import streamlit as st
 import pickle
 import numpy as np
-import os
 
-@st.cache_resource
+st.set_page_config(page_title="Advertising Sales Predictor", layout="centered")
+
+st.title("📊 Advertising Sales Prediction")
+st.write(
+    "Enter your advertising budget for TV, Radio, and Newspaper to predict sales."
+)
+
+# 1️⃣ Load the trained model
+@st.cache_data
 def load_model():
-    base_dir = os.path.dirname(__file__)
-    model_path = os.path.join(base_dir, "advertising_poly_model.pkl")
-    with open(model_path, "rb") as f:
-        return pickle.load(f)
+    with open("advertising_poly_model.pkl", "rb") as f:
+        model, poly = pickle.load(f)
+    return model, poly
 
-model = load_model()
+model, poly = load_model()
 
-st.title("📈 Advertising Sales Prediction")
-st.write("Predict Sales using Polynomial Regression")
+# 2️⃣ User input
+tv = st.number_input("TV Advertising Spend ($)", min_value=0.0, value=500.0, step=10.0)
+radio = st.number_input("Radio Advertising Spend ($)", min_value=0.0, value=250.0, step=5.0)
+newspaper = st.number_input("Newspaper Advertising Spend ($)", min_value=0.0, value=100.0, step=5.0)
 
-tv = st.number_input("TV Advertising Spend", min_value=0.0, step=1.0)
-radio = st.number_input("Radio Advertising Spend", min_value=0.0, step=1.0)
-newspaper = st.number_input("Newspaper Advertising Spend", min_value=0.0, step=1.0)
+if st.button("Predict Sales"):
+    # 3️⃣ Prepare input
+    new_data = np.array([[tv, radio, newspaper]])
+    new_data_poly = poly.transform(new_data)
 
-if st.button("🔮 Predict Sales"):
-    X = np.array([[tv, radio, newspaper]])
+    # 4️⃣ Make prediction
+    predicted_sales = model.predict(new_data_poly)[0]
 
-    try:
-        # ✅ CASE 1: Pipeline
-        if hasattr(model, "predict"):
-            y_pred = model.predict(X)
-
-        # ✅ CASE 2: Tuple (poly, regressor)
-        elif isinstance(model, tuple):
-            poly, regressor = model
-            X_poly = poly.transform(X)
-            y_pred = regressor.predict(X_poly)
-
-        # ✅ CASE 3: Dictionary
-        elif isinstance(model, dict):
-            X_poly = model["poly"].transform(X)
-            y_pred = model["model"].predict(X_poly)
-
-        else:
-            raise ValueError("Unknown model format")
-
-        st.success(f"📊 Predicted Sales: **{y_pred[0]:.2f}**")
-
-    except Exception as e:
-        st.error("Prediction failed due to model structure mismatch")
-        st.exception(e)
+    # 5️⃣ Display results
+    st.success(f"Predicted Sales: {predicted_sales:.2f} units")
