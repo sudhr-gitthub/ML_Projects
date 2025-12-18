@@ -5,72 +5,62 @@ import numpy as np
 import gdown
 import os
 
-st.set_page_config(page_title="CNN Classifier", layout="centered")
-
+st.set_page_config(page_title="CNN Classifier")
 st.title("Image Classification App")
 
-# --- MODEL CONFIGURATION ---
+# --- MODEL CONFIG ---
+# Link: https://drive.google.com/file/d/1E6-TihB-gCnDa910ZcwCFunW6xdoasmd/view?usp=sharing
 FILE_ID = '1E6-TihB-gCnDa910ZcwCFunW6xdoasmd'
 MODEL_FILENAME = 'Own_dataset_cnn_multi-class_classifier.h5'
 
 @st.cache_resource
 def load_model():
-    # 1. Download file if missing
+    # 1. Download if file is missing
     if not os.path.exists(MODEL_FILENAME):
         url = f'https://drive.google.com/uc?id={FILE_ID}'
-        # quiet=False allows us to see download progress in logs
-        gdown.download(url, MODEL_FILENAME, quiet=False)
+        with st.spinner("Downloading model..."):
+            gdown.download(url, MODEL_FILENAME, quiet=False)
 
-    # 2. CHECK FILE SIZE (Crucial Step)
-    # If the file is < 10KB, it's likely a Google Drive error page, not the model.
+    # 2. Check file size (If < 2KB, download failed)
     if os.path.exists(MODEL_FILENAME):
-        size = os.path.getsize(MODEL_FILENAME)
-        if size < 10000:
-            st.error("CRITICAL ERROR: The downloaded file is too small. Google Drive refused the automated download.")
-            st.warning("SOLUTION: Download the .h5 file manually and upload it directly to your GitHub repository.")
+        if os.path.getsize(MODEL_FILENAME) < 2000:
+            st.error("Error: Model file is too small. Google Drive blocked the download.")
             st.stop()
-    
+            
     # 3. Load Model
     try:
         model = tf.keras.models.load_model(MODEL_FILENAME)
         return model
     except Exception as e:
-        st.error(f"Error loading Keras model: {e}")
+        st.error(f"Error loading model: {e}")
         return None
 
-# Load the model
-with st.spinner("Setting up model..."):
-    model = load_model()
+model = load_model()
 
 if model:
-    st.success("Model loaded successfully!")
+    st.success("Model loaded!")
 
 # --- PREDICTION ---
-file = st.file_uploader("Upload an image...", type=["jpg", "png", "jpeg"])
-
-def import_and_predict(image_data, model):
-    # Resize to 224x224 (Standard)
-    size = (224, 224)    
-    image = ImageOps.fit(image_data, size, Image.Resampling.LANCZOS)
-    img = np.asarray(image)
-    img = img / 255.0
-    img_reshape = img[np.newaxis, ...]
-    prediction = model.predict(img_reshape)
-    return prediction
+file = st.file_uploader("Upload an image", type=["jpg", "png", "jpeg"])
 
 if file is not None:
     image = Image.open(file)
-    st.image(image, use_column_width=True)
+    st.image(image, width=300)
     
     if model:
-        predictions = import_and_predict(image, model)
+        # Resize to 224x224 (Standard)
+        size = (224, 224)
+        image = ImageOps.fit(image, size, Image.Resampling.LANCZOS)
+        img_array = np.asarray(image) / 255.0
+        img_reshape = img_array[np.newaxis, ...]
         
-        # --- UPDATE YOUR CLASS NAMES HERE ---
-        class_names = ['Class A', 'Class B', 'Class C', 'Class D']
+        prediction = model.predict(img_reshape)
         
-        score = tf.nn.softmax(predictions[0])
-        predicted_class = class_names[np.argmax(predictions[0])]
-        confidence = 100 * np.max(score)
+        # UPDATE THIS LIST
+        class_names = ['Class 0', 'Class 1', 'Class 2', 'Class 3']
         
-        st.write(f"### Result: {predicted_class}")
-        st.write(f"Confidence: {confidence:.2f}%")
+        idx = np.argmax(prediction[0])
+        if idx < len(class_names):
+            st.write(f"### Prediction: {class_names[idx]}")
+        else:
+            st.write(f"### Prediction Class Index: {idx}")
