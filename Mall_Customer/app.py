@@ -12,19 +12,21 @@ st.set_page_config(
 )
 
 # --- Constants ---
-MODEL_PATH = 'mall_customer_hier.pkl'
+# FIX: Get the absolute path of the directory where this script is located
+current_dir = os.path.dirname(os.path.abspath(__file__))
+# Construct the full path to the model file
+MODEL_PATH = os.path.join(current_dir, 'mall_customer_hier.pkl')
 
 # --- Load Model Function ---
 @st.cache_resource
 def load_model():
     """
-    Loads the machine learning model safely.
-    Checks if the file exists first.
+    Loads the machine learning model safely using absolute paths.
     """
     if not os.path.exists(MODEL_PATH):
+        # Return None and let the main function handle the error display
         return None
     try:
-        # Using joblib as it is standard for sklearn pickles
         model = joblib.load(MODEL_PATH)
         return model
     except Exception as e:
@@ -39,9 +41,11 @@ def main():
     # Load the model
     model = load_model()
 
+    # Check if model loaded successfully
     if model is None:
         st.error(f"Could not find model file at: `{MODEL_PATH}`")
-        st.warning("Please ensure the .pkl file is in the same directory as this app.py.")
+        st.warning(f"Script location: `{current_dir}`")
+        st.info("Please ensure 'mall_customer_hier.pkl' is inside the 'Mall_Customer' folder alongside 'app.py'.")
         return
 
     # --- Sidebar ---
@@ -51,14 +55,13 @@ def main():
     # --- Model Details Section ---
     st.subheader("📊 Model Configuration")
     
-    # Extracting attributes from the AgglomerativeClustering object
     col1, col2, col3 = st.columns(3)
     
     with col1:
         st.metric("Algorithm", "Agglomerative Clustering")
         
     with col2:
-        # n_clusters might be None if distance_threshold is used, handling that safely
+        # Safely access attributes (some might be None depending on training parameters)
         n_clusters = getattr(model, 'n_clusters_', 'N/A')
         st.metric("Clusters Found", n_clusters)
         
@@ -68,25 +71,24 @@ def main():
 
     st.divider()
 
-    # --- Educational Logic: The "Predict" Constraint ---
+    # --- Educational Logic ---
     st.subheader("🤔 How to Predict New Customers?")
     
     st.info(
         """
-        **Note on Hierarchical Clustering:** Unlike K-Means, `AgglomerativeClustering` does not natively support a `.predict()` method for new data points. 
-        It is designed to group the *existing* data it was trained on.
+        **Note on Hierarchical Clustering:** This specific algorithm (`AgglomerativeClustering`) groups 
+        the data provided during training but does not have a standard `.predict()` function for new customers.
         """
     )
     
     st.markdown("### Recommended Next Steps for Deployment")
-    st.write("To enable a feature where you input 'Income' and 'Score' to get a Cluster ID, you can implement one of these approaches:")
-    
     st.markdown("""
-    1.  **Switch to K-Means:** If you re-train your model using `KMeans`, you can use `kmeans.predict([[income, score]])` directly.
-    2.  **Train a Classifier:** You can use the `labels_` from this hierarchical model to train a `KNeighborsClassifier`. This classifier can then predict the cluster for new customers.
+    To enable a live prediction feature (e.g., inputting Income/Score to get a Cluster ID):
+    1.  **Train a Classifier:** Extract the cluster labels from this model and train a **K-Nearest Neighbors (KNN)** or **Random Forest** classifier on them.
+    2.  **Use the Classifier:** Save that classifier and use it here to predict new inputs.
     """)
 
-    # --- Cluster Distribution Visualization (if labels exist) ---
+    # --- Cluster Distribution Visualization ---
     if hasattr(model, 'labels_'):
         st.subheader("📉 Saved Training Data Distribution")
         st.write("Below is the distribution of customers across clusters from the saved model state:")
