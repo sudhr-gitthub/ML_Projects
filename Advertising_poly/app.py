@@ -2,68 +2,58 @@ import streamlit as st
 import pickle
 import numpy as np
 
-# Page Configuration
-st.set_page_config(page_title="Advertising Sales Predictor", layout="centered")
-
+# -----------------------------
+# Load the trained model
+# -----------------------------
+@st.cache_resource
 def load_model():
+    with open("advertising_poly_model.pkl", "rb") as file:
+        model = pickle.load(file)
+    return model
+
+model = load_model()
+
+# -----------------------------
+# Streamlit UI
+# -----------------------------
+st.set_page_config(
+    page_title="Advertising Sales Prediction",
+    page_icon="📈",
+    layout="centered"
+)
+
+st.title("📈 Advertising Sales Prediction (Polynomial Regression)")
+st.write(
     """
-    Loads the model and polynomial transformer from the pickle file.
-    The file contains a tuple: (LinearRegression, PolynomialFeatures)
+    Predict **Sales** based on advertising spend in:
+    - 📺 TV
+    - 📻 Radio
+    - 📰 Newspaper
     """
+)
+
+# -----------------------------
+# User Inputs
+# -----------------------------
+tv = st.number_input("TV Advertising Spend", min_value=0.0, step=1.0)
+radio = st.number_input("Radio Advertising Spend", min_value=0.0, step=1.0)
+newspaper = st.number_input("Newspaper Advertising Spend", min_value=0.0, step=1.0)
+
+# -----------------------------
+# Prediction
+# -----------------------------
+if st.button("🔮 Predict Sales"):
+    input_data = np.array([[tv, radio, newspaper]])
+
     try:
-        with open('advertising_poly_model.pkl', 'rb') as file:
-            data = pickle.load(file)
-        return data[0], data[1] # Unpacking model and poly_converter
-    except FileNotFoundError:
-        st.error("File 'advertising_poly_model.pkl' not found. Please upload it to the same directory.")
-        return None, None
+        prediction = model.predict(input_data)
+        st.success(f"📊 Predicted Sales: **{prediction[0]:.2f}**")
     except Exception as e:
-        st.error(f"Error loading model: {e}")
-        return None, None
+        st.error("⚠️ Prediction failed. Please check the model format.")
+        st.exception(e)
 
-def main():
-    st.title("📈 Advertising Sales Predictor")
-    st.write("Enter your advertising budgets below to predict sales volume.")
-
-    # Load resources
-    model, poly = load_model()
-
-    if model and poly:
-        st.write("---")
-        
-        # Input Form
-        with st.form("prediction_form"):
-            st.header("Advertising Budget parameters")
-            
-            # The model was trained on: ['TV', 'Radio', 'Newspaper']
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                tv_budget = st.number_input("TV Budget ($)", min_value=0.0, value=100.0, step=10.0)
-            
-            with col2:
-                radio_budget = st.number_input("Radio Budget ($)", min_value=0.0, value=25.0, step=1.0)
-                
-            with col3:
-                news_budget = st.number_input("Newspaper Budget ($)", min_value=0.0, value=10.0, step=1.0)
-            
-            submit_btn = st.form_submit_button("Predict Sales")
-
-        # Prediction Logic
-        if submit_btn:
-            # 1. Prepare input array
-            input_data = np.array([[tv_budget, radio_budget, news_budget]])
-            
-            # 2. Transform input using the loaded PolynomialFeatures
-            # This expands the 3 inputs into 9 features (degree 2 interaction terms)
-            input_transformed = poly.transform(input_data)
-            
-            # 3. Predict using the LinearRegression model
-            prediction = model.predict(input_transformed)
-            
-            # 4. Display Result
-            st.success(f"### Predicted Sales: {prediction[0]:.2f}")
-            st.info(f"Model used: Polynomial Regression (Degree {poly.degree})")
-
-if __name__ == "__main__":
-    main()
+# -----------------------------
+# Footer
+# -----------------------------
+st.markdown("---")
+st.caption("Polynomial Regression Model • Streamlit App")
