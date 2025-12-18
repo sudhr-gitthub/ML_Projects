@@ -4,13 +4,23 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
-# --- Configuration ---
-MODEL_FILE = 'kmeans_model.pkl'
+# --- Path Configuration ---
+# Get the directory where this script (app.py) is located
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Construct the full path to the model file
+MODEL_FILE = os.path.join(current_dir, 'kmeans_model.pkl')
 
 def load_model():
-    """Loads the KMeans model from the pickle file."""
+    """Loads the KMeans model from the pickle file using an absolute path."""
     if not os.path.exists(MODEL_FILE):
-        st.error(f"Error: Model file '{MODEL_FILE}' not found. Please upload it to the same directory as this script.")
+        st.error(f"Error: Model file not found at: {MODEL_FILE}")
+        # Debugging aid: Show what files ARE present to help troubleshooting
+        st.write(f"Files found in {current_dir}:")
+        try:
+            st.write(os.listdir(current_dir))
+        except Exception:
+            st.write("Could not list directory contents.")
         return None
     
     try:
@@ -34,17 +44,15 @@ def main():
     model = load_model()
     
     if model:
-        # Check model metadata
+        # Check model metadata (defaults to 2 if not found)
         n_features = getattr(model, 'n_features_in_', 2)
         
         st.sidebar.header("Input Features")
         st.sidebar.info(f"Model expects {n_features} input features.")
 
         # --- Input Fields ---
-        # Note: Since the exact feature names (e.g., 'Momentum X', 'Energy') aren't in the pkl, 
-        # we use generic descriptive names. You can rename these if you know the specific physics metrics.
-        feature_1 = st.sidebar.number_input("Feature 1 (e.g., x-coordinate / momentum)", value=0.0, format="%.4f")
-        feature_2 = st.sidebar.number_input("Feature 2 (e.g., y-coordinate / energy)", value=0.0, format="%.4f")
+        feature_1 = st.sidebar.number_input("Feature 1 (e.g., Momentum X)", value=0.0, format="%.4f")
+        feature_2 = st.sidebar.number_input("Feature 2 (e.g., Energy)", value=0.0, format="%.4f")
 
         input_data = np.array([[feature_1, feature_2]])
 
