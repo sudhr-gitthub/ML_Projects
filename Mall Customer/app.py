@@ -1,70 +1,47 @@
 import streamlit as st
-import pickle
-import numpy as np
-from sklearn.metrics import pairwise_distances_argmin
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import StandardScaler
+from scipy.cluster.hierarchy import dendrogram, linkage
+import joblib
 
-# ---------------------------------------------------
-# Load model & training data
-# ---------------------------------------------------
-@st.cache_resource
-def load_assets():
-    with open("mall_customer_hier.pkl", "rb") as f:
-        assets = pickle.load(f)
+st.set_page_config(layout="wide")
 
-    return assets
+st.title("Mall Customer Segmentation - Hierarchical Clustering")
 
-assets = load_assets()
+# Load the preprocessed data
+@st.cache_data
+def load_data():
+    try:
+        df = joblib.load('mall_customers.pkl')
+        return df
+    except FileNotFoundError:
+        st.error("Error: 'mall_customers.pkl' not found. Please ensure the file is generated in the Colab environment.")
+        return None
 
-# EXPECTED STRUCTURE:
-# assets = {
-#   "model": trained_model,
-#   "X_train": training_data,
-#   "labels": cluster_labels
-# }
+df = load_data()
 
-model = assets["model"]
-X_train = assets["X_train"]
-labels = assets["labels"]
+if df is not None:
+    st.subheader("Original DataFrame Head (Preprocessed)")
+    st.dataframe(df.head())
 
-# ---------------------------------------------------
-# Compute cluster centroids
-# ---------------------------------------------------
-def compute_centroids(X, labels):
-    centroids = []
-    for label in np.unique(labels):
-        centroids.append(X[labels == label].mean(axis=0))
-    return np.array(centroids)
+    # Scale the features (re-apply scaling as `X_scaled` was not saved)
+    st.subheader("Scaling Features for Clustering")
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(df)
+    st.write("Features scaled using StandardScaler.")
 
-centroids = compute_centroids(X_train, labels)
+    # Perform hierarchical clustering
+    st.subheader("Hierarchical Clustering Dendrogram")
+    linked = linkage(X_scaled, method="ward")
 
-# ---------------------------------------------------
-# Streamlit UI
-# ---------------------------------------------------
-st.set_page_config(
-    page_title="Mall Customer Segmentation",
-    page_icon="🛍️",
-    layout="centered"
-)
+    fig, ax = plt.subplots(figsize=(12, 7))
+    dendrogram(linked, ax=ax)
+    ax.set_title("Dendrogram for Hierarchical Clustering")
+    ax.set_xlabel("Customers")
+    ax.set_ylabel("Euclidean Distance")
+    st.pyplot(fig)
 
-st.title("🛍️ Mall Customer Segmentation (Hierarchical)")
-st.write("Assign a customer to the nearest cluster")
-
-# ---------------------------------------------------
-# User Inputs
-# ---------------------------------------------------
-age = st.slider("Age", 18, 70, 30)
-income = st.slider("Annual Income (k$)", 10, 150, 60)
-score = st.slider("Spending Score (1–100)", 1, 100, 50)
-
-# ---------------------------------------------------
-# Predict Cluster
-# ---------------------------------------------------
-if st.button("Predict Cluster"):
-    user_data = np.array([[age, income, score]])
-
-    cluster = pairwise_distances_argmin(user_data, centroids)[0]
-
-    st.success(f"🎯 Predicted Customer Cluster: **Cluster {cluster}**")
-
-st.markdown("---")
-st.caption("Hierarchical Clustering | Streamlit App")
+    st.markdown("--- Developed with Streamlit --- ")
+else:
+    st.write("Please ensure the data preprocessing and saving steps were completed successfully in Colab.")
