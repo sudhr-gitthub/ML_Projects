@@ -10,21 +10,22 @@ st.title("🐟 Fish Weight Prediction")
 st.markdown("Predict weight using **numeric dimensions**: Length1, Length2, Length3, Height, and Width.")
 
 # 1. Loading Logic with Path Diagnostics
+# Function to load the model with the correct subfolder path
 @st.cache_resource
 def load_model():
-    model_path = "Fish_model.pkl"
+    # Updated path based on your debug folder contents
+    model_path = "Fish_weight_poly/Fish_model.pkl" 
     
-    # Check if file exists
     if os.path.exists(model_path):
         try:
             with open(model_path, "rb") as f:
-                # Unpacks the [PolynomialFeatures, LinearRegression] tuple 
-                return pickle.load(f)
+                # The pickle contains [PolynomialFeatures, LinearRegression]
+                data = pickle.load(f)
+                return data[0], data[1]
         except Exception as e:
-            st.error(f"Error loading model: {e}")
-            return None
-    return None
-
+            st.error(f"Error reading the file: {e}")
+            return None, None
+    return None, None
 model_data = load_model()
 
 # 2. User Interface and Numeric Inputs
