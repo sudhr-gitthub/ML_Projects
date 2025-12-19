@@ -2,38 +2,57 @@ import streamlit as st
 import numpy as np
 import pickle
 
-st.set_page_config(page_title="Fish Weight Prediction", layout="centered")
+# Configuration
+st.set_page_config(page_title="Fish Weight Predictor", page_icon="🐟")
 
 st.title("🐟 Fish Weight Prediction")
-st.write("Predict fish weight using a **Polynomial Regression model**")
+st.markdown("""
+Predict the weight of a fish based on its physical dimensions using a **Polynomial Linear Regression** model.
+""")
 
-# Load trained model components
-# The PKL contains [PolynomialFeatures, LinearRegression]
-with open("Fish_model.pkl", "rb") as f:
-    # Source 1 & 2 indicate the file contains these two components sequentially
-    poly, model = pickle.load(f)
+# Load the model components from the uploaded pickle file
+# The file contains the PolynomialFeatures transformer and the LinearRegression model 
+@st.cache_resource
+def load_model():
+    with open("Fish_model.pkl", "rb") as f:
+        # The pickle structure stores the transformer (poly) and the regressor (model) [cite: 1, 2]
+        poly, model = pickle.load(f)
+    return poly, model
 
-st.success("✅ Model and Transformer loaded successfully")
+try:
+    poly, model = load_model()
+    st.success("✅ Model version 1.6.1 loaded successfully ")
+except Exception as e:
+    st.error(f"Error loading model: {e}")
 
-st.subheader("Enter Fish Measurements")
+st.divider()
 
-# Feature names identified from the model: Length1, Length2, Length3, Height, Width
-l1 = st.number_input("Vertical Length (Length1) (cm)", 0.0, 100.0, 23.2)
-l2 = st.number_input("Diagonal Length (Length2) (cm)", 0.0, 100.0, 25.4)
-l3 = st.number_input("Cross Length (Length3) (cm)", 0.0, 100.0, 30.0)
-h  = st.number_input("Height (cm)", 0.0, 50.0, 11.5)
-w  = st.number_input("Width (cm)", 0.0, 30.0, 4.0)
+# Input section using the specific feature names from the model 
+col1, col2 = st.columns(2)
 
-if st.button("Predict Weight"):
-    # Create input array
-    input_data = np.array([[l1, l2, l3, h, w]])
+with col1:
+    l1 = st.number_input("Vertical Length (Length1) (cm)", value=23.2, min_value=0.0)
+    l2 = st.number_input("Diagonal Length (Length2) (cm)", value=25.4, min_value=0.0)
+    l3 = st.number_input("Cross Length (Length3) (cm)", value=30.0, min_value=0.0)
+
+with col2:
+    h = st.number_input("Height (cm)", value=11.5, min_value=0.0)
+    w = st.number_input("Width (cm)", value=4.0, min_value=0.0)
+
+# Prediction Logic
+if st.button("Predict Weight", type="primary"):
+    # Arrange features in the order expected by the model 
+    input_features = np.array([[l1, l2, l3, h, w]])
     
-    # 1. Transform the input using the loaded PolynomialFeatures 
-    input_poly = poly.transform(input_data)
+    # Apply the Polynomial transformation 
+    input_poly = poly.transform(input_features)
     
-    # 2. Predict using the loaded LinearRegression model [cite: 2]
+    # Generate prediction 
     prediction = model.predict(input_poly)
     
-    # Display result
-    st.metric(label="Predicted Weight", value=f"{prediction[0]:.2f} grams")
+    # The intercept_ for this model is approximately 256.40 
+    st.metric(label="Estimated Fish Weight", value=f"{prediction[0]:.2f} grams")
     st.balloons()
+
+st.divider()
+st.info("Note: This model uses Length1, Length2, Length3, Height, and Width as inputs.")
