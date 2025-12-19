@@ -3,61 +3,81 @@ import numpy as np
 import pickle
 import os
 
-# Page layout
+# 1. Page Configuration
 st.set_page_config(page_title="Fish Weight Predictor", page_icon="🐟")
 
 st.title("🐟 Fish Weight Prediction")
-st.write("Enter the physical dimensions of the fish below to predict its weight in grams.")
+st.write("Enter the fish dimensions to predict its weight.")
 
-# Function to load the model
+# 2. Model Loading Logic
 @st.cache_resource
 def load_model():
-    model_path = "Fish_model.pkl"
-    if os.path.exists(model_path):
-        with open(model_path, "rb") as f:
-            # Your model file contains: (PolynomialFeatures, LinearRegression)
-            data = pickle.load(f)
-            return data[0], data[1]
-    return None, None
+    # Looking for the file in the same folder as this script
+    model_name = "Fish_model.pkl"
+    
+    if os.path.exists(model_name):
+        try:
+            with open(model_name, "rb") as f:
+                # The file contains: (PolynomialFeatures, LinearRegression)
+                data = pickle.load(f)
+                return data[0], data[1] # poly_transformer, regressor
+        except Exception as e:
+            st.error(f"Error reading the file: {e}")
+            return None, None
+    else:
+        return None, None
 
-# Load model components
+# Try to load the model
 poly, model = load_model()
 
-if poly is not None:
+# 3. User Interface
+if poly is not None and model is not None:
     st.success("✅ Model loaded successfully!")
     
-    st.subheader("Numeric Measurements")
+    st.subheader("Input Measurements (Numbers Only)")
     
-    # Create two columns for a better layout
+    # Using columns for a clean layout
     col1, col2 = st.columns(2)
     
     with col1:
-        l1 = st.number_input("Vertical Length (cm)", min_value=0.0, value=23.2, format="%.2f")
-        l2 = st.number_input("Diagonal Length (cm)", min_value=0.0, value=25.4, format="%.2f")
-        l3 = st.number_input("Cross Length (cm)", min_value=0.0, value=30.0, format="%.2f")
+        # st.number_input ensures only numbers can be entered
+        l1 = st.number_input("Vertical Length (Length1) in cm", min_value=0.0, value=23.2, step=0.1)
+        l2 = st.number_input("Diagonal Length (Length2) in cm", min_value=0.0, value=25.4, step=0.1)
+        l3 = st.number_input("Cross Length (Length3) in cm", min_value=0.0, value=30.0, step=0.1)
     
     with col2:
-        h = st.number_input("Height (cm)", min_value=0.0, value=11.5, format="%.2f")
-        w = st.number_input("Width (cm)", min_value=0.0, value=4.0, format="%.2f")
+        h = st.number_input("Height in cm", min_value=0.0, value=11.5, step=0.1)
+        w = st.number_input("Width in cm", min_value=0.0, value=4.0, step=0.1)
 
+    # 4. Prediction Button
     if st.button("Predict Weight", type="primary"):
-        # Put inputs into a 2D numpy array
-        input_data = np.array([[l1, l2, l3, h, w]])
+        # Convert inputs to a numpy array
+        features = np.array([[l1, l2, l3, h, w]])
         
-        # 1. Expand to polynomial features
-        poly_features = poly.transform(input_data)
+        # Step A: Transform inputs into Polynomial features
+        poly_features = poly.transform(features)
         
-        # 2. Predict using the regression model
+        # Step B: Predict using the Linear Regression model
         prediction = model.predict(poly_features)
         
-        # Display results
-        weight = max(0, prediction[0]) # Weight cannot be negative
-        st.metric(label="Predicted Fish Weight", value=f"{weight:.2f} grams")
+        # Show result
+        st.metric(label="Predicted Fish Weight", value=f"{max(0, prediction[0]):.2f} grams")
         st.balloons()
 
 else:
-    st.error("❌ **Fish_model.pkl** not found!")
-    st.info("Make sure the file 'Fish_model.pkl' is in the same folder as this app.py file.")
+    # ERROR HANDLING AND DEBUGGING
+    st.error("❌ 'Fish_model.pkl' was not found in the current folder.")
+    
+    st.info("📂 **Debug Info for you:**")
+    st.write(f"Your app is running in: `{os.getcwd()}`")
+    st.write("Files found in this folder:", os.listdir("."))
+    
+    st.markdown("""
+    ### How to fix this:
+    1. Make sure your model file is named exactly **`Fish_model.pkl`**.
+    2. Ensure the model file is in the **same folder** as this `app.py`.
+    3. If using **GitHub/Streamlit Cloud**, upload the `.pkl` file to your repository.
+    """)
 
 st.divider()
-st.info("Note: This model requires all 5 numeric inputs (Length1, Length2, Length3, Height, Width).")
+st.caption("Model Version: scikit-learn 1.6.1 | Features: Length1, Length2, Length3, Height, Width")
