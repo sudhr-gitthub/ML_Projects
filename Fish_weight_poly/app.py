@@ -11,23 +11,22 @@ Predict the weight of a fish based on its physical dimensions using a **Polynomi
 """)
 
 # Load the model components from the uploaded pickle file
-# The file contains the PolynomialFeatures transformer and the LinearRegression model 
 @st.cache_resource
 def load_model():
     with open("Fish_model.pkl", "rb") as f:
-        # The pickle structure stores the transformer (poly) and the regressor (model) [cite: 1, 2]
+        # The pickle structure stores the transformer (poly) and the regressor (model)
         poly, model = pickle.load(f)
     return poly, model
 
 try:
     poly, model = load_model()
-    st.success("✅ Model version 1.6.1 loaded successfully ")
+    st.success("✅ Model version 1.6.1 loaded successfully")
 except Exception as e:
     st.error(f"Error loading model: {e}")
 
 st.divider()
 
-# Input section using the specific feature names from the model 
+# Input section using the specific feature names identified in the model
 col1, col2 = st.columns(2)
 
 with col1:
@@ -41,16 +40,15 @@ with col2:
 
 # Prediction Logic
 if st.button("Predict Weight", type="primary"):
-    # Arrange features in the order expected by the model 
+    # Arrange features in the order expected by the model (Length1, Length2, Length3, Height, Width)
     input_features = np.array([[l1, l2, l3, h, w]])
     
-    # Apply the Polynomial transformation 
+    # Apply the Polynomial transformation (Degree 2)
     input_poly = poly.transform(input_features)
     
-    # Generate prediction 
+    # Generate prediction using LinearRegression
     prediction = model.predict(input_poly)
     
-    # The intercept_ for this model is approximately 256.40 
     st.metric(label="Estimated Fish Weight", value=f"{prediction[0]:.2f} grams")
     st.balloons()
 
