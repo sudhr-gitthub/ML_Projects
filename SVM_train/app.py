@@ -59,10 +59,10 @@ if st.button("🔮 Predict Survival"):
 
     st.subheader("🔍 Prediction Result")
 
-    st.write("Raw Model Output:", prediction)
-    st.write("Possible Classes:", model.classes_)
+    st.write("🔢 Raw Model Output:", prediction)
+    st.write("📌 Model Classes:", model.classes_)
 
-    st.info(f"🧠 Model Predicted Class: **{prediction}**")
+    st.success(f"🧠 Predicted Class: {prediction}")
 
 # ---------------- Footer ----------------
 st.markdown("---")
