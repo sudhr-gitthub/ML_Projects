@@ -59,18 +59,10 @@ if st.button("🔮 Predict Survival"):
 
     st.subheader("🔍 Prediction Result")
 
-    # Show raw output (for checking)
-    st.write("Model Output (0 = Not Survived, 1 = Survived):", prediction)
+    st.write("Raw Model Output:", prediction)
+    st.write("Possible Classes:", model.classes_)
 
-    if prediction == 1:
-        st.success("✅ Passenger is **LIKELY TO SURVIVE**")
-    else:
-        st.error("❌ Passenger is **NOT LIKELY TO SURVIVE**")
-
-    # Optional probability (only if supported)
-    if hasattr(model, "predict_proba"):
-        prob = model.predict_proba(input_data)
-        st.info(f"🧮 Survival Probability: **{prob[0][1]*100:.2f}%**")
+    st.info(f"🧠 Model Predicted Class: **{prediction}**")
 
 # ---------------- Footer ----------------
 st.markdown("---")
