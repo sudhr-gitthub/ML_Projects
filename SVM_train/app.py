@@ -1,6 +1,7 @@
 import streamlit as st
 import pickle
 import numpy as np
+import os
 
 # ---------------- Page Configuration ----------------
 st.set_page_config(
@@ -11,10 +12,13 @@ st.set_page_config(
 st.title("🔍 SVM Machine Learning Prediction App")
 st.write("Enter feature values below to make a prediction using the trained SVM model.")
 
-# ---------------- Load Model ----------------
+# ---------------- Load Model Safely ----------------
 @st.cache_resource
 def load_model():
-    with open("SVM_train.pkl", "rb") as file:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    model_path = os.path.join(BASE_DIR, "SVM_train.pkl")
+
+    with open(model_path, "rb") as file:
         model = pickle.load(file)
     return model
 
@@ -28,7 +32,7 @@ st.subheader(f"Enter {n_features} Feature Values")
 inputs = []
 for i in range(n_features):
     value = st.number_input(
-        label=f"Feature {i + 1}",
+        f"Feature {i + 1}",
         value=0.0,
         format="%.4f"
     )
@@ -40,11 +44,11 @@ input_array = np.array(inputs).reshape(1, -1)
 if st.button("🔮 Predict"):
     prediction = model.predict(input_array)
 
-    try:
+    if hasattr(model, "predict_proba"):
         probability = model.predict_proba(input_array)
         st.success(f"🎯 Prediction: **{prediction[0]}**")
         st.info(f"📊 Confidence: **{np.max(probability) * 100:.2f}%**")
-    except:
+    else:
         st.success(f"🎯 Prediction: **{prediction[0]}**")
 
 # ---------------- Footer ----------------
