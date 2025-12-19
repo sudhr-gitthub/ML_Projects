@@ -13,35 +13,40 @@ Predict the weight of a fish based on its physical dimensions using a **Polynomi
 
 # Load the model components
 @st.cache_resource
-def load_model():
+def load_model(uploaded_file=None):
+    if uploaded_file is not None:
+        # Load from the user's upload
+        data = pickle.load(uploaded_file)
+        return data[0], data[1] # poly, model
+    
     model_path = "Fish_model.pkl"
-    
-    # Check if the file exists to prevent the Errno 2 error
-    if not os.path.exists(model_path):
-        st.error(f"❌ **File Not Found:** The app cannot find '{model_path}'.")
-        st.info("💡 **Solution:** Ensure 'Fish_model.pkl' is uploaded to the same folder as this script on GitHub or your local machine.")
-        return None, None
-    
-    try:
+    if os.path.exists(model_path):
         with open(model_path, "rb") as f:
-            # The pickle contains [PolynomialFeatures, LinearRegression] sequentially
-            poly, model = pickle.load(f)
-        return poly, model
-    except Exception as e:
-        st.error(f"❌ **Error Loading Model:** {e}")
-        return None, None
+            # The pickle contains [PolynomialFeatures, LinearRegression] 
+            data = pickle.load(f)
+            # Depending on how it was saved, it's likely a list/tuple
+            if isinstance(data, (list, tuple)):
+                return data[0], data[1]
+            return None, None
+    return None, None
 
-# Initialize the model components 
+# Try loading from local file first
 poly, model = load_model()
 
+# If local file is missing, provide an uploader
+if poly is None:
+    st.warning("⚠️ **Fish_model.pkl** not found in the project folder.")
+    uploaded_file = st.file_uploader("Please upload 'Fish_model.pkl' to continue", type="pkl")
+    if uploaded_file:
+        poly, model = load_model(uploaded_file)
+        st.success("✅ Model uploaded and loaded successfully!")
+
 if poly is not None and model is not None:
-    st.success("✅ Model loaded successfully (v1.6.1)")
+    st.success("✅ Model version 1.6.1 ready") [cite: 1]
 
     st.divider()
 
-    # Input section based on model features: Length1, Length2, Length3, Height, Width 
-    
-    
+    # Input section based on model metadata 
     col1, col2 = st.columns(2)
 
     with col1:
@@ -55,18 +60,18 @@ if poly is not None and model is not None:
 
     # Prediction Logic
     if st.button("Predict Weight", type="primary"):
-        # Create input array in the exact order required by the model 
-        input_data = np.array([[l1, l2, l3, h, w]])
+        # Features: Length1, Length2, Length3, Height, Width 
+        input_features = np.array([[l1, l2, l3, h, w]])
         
-        # 1. Apply the Polynomial transformation 
-        input_poly = poly.transform(input_data)
+        # 1. Apply Polynomial transformation
+        input_poly = poly.transform(input_features)
         
-        # 2. Generate prediction using the linear model 
+        # 2. Generate prediction
         prediction = model.predict(input_poly)
         
-        # Display the result (The model has a specific intercept of approx 256.40) 
+        # Display results
         st.metric(label="Estimated Fish Weight", value=f"{prediction[0]:.2f} grams")
         st.balloons()
 
 st.divider()
-st.info("Note: This model uses Length1, Length2, Length3, Height, and Width as inputs.")
+st.info("Note: This model uses Length1, Length2, Length3, Height, and Width as inputs.") [cite: 1]
