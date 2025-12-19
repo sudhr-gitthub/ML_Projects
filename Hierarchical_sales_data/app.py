@@ -1,93 +1,56 @@
 import streamlit as st
 import pickle
+import os
+import requests
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
-
 from scipy.cluster.hierarchy import dendrogram
 
 # -------------------------------------------------
 # Page config
 # -------------------------------------------------
-st.set_page_config(
-    page_title="Hierarchical Sales Analysis",
-    layout="centered"
-)
+st.set_page_config(page_title="Hierarchical Sales Analysis")
 
 st.title("📊 Hierarchical Sales Data Analysis")
-st.write("Visualize and analyze hierarchical clustering on sales data")
+
+MODEL_FILE = "hierarchical_sales.pkl"
+GITHUB_RAW_URL = "https://raw.githubusercontent.com/sudhr-gitthub/ML_Projects/main/Hierarchical_sales_data/hierarchical_sales.pkl"
 
 # -------------------------------------------------
-# Load model
+# Download model if not exists
 # -------------------------------------------------
-@st.cache_resource
-def load_pickle():
-    with open("hierarchical_sales.pkl", "rb") as f:
-        return pickle.load(f)
+def download_model():
+    if not os.path.exists(MODEL_FILE):
+        st.info("⬇️ Downloading model from GitHub...")
+        response = requests.get(GITHUB_RAW_URL)
+        with open(MODEL_FILE, "wb") as f:
+            f.write(response.content)
 
+download_model()
+
+# -------------------------------------------------
+# Load pickle
+# -------------------------------------------------
 try:
-    model_obj = load_pickle()
-    st.success("✅ hierarchical_sales.pkl loaded successfully")
+    with open(MODEL_FILE, "rb") as f:
+        model_obj = pickle.load(f)
+    st.success("✅ Model loaded successfully")
 except Exception as e:
     st.error(f"❌ Error loading pickle file: {e}")
     st.stop()
 
 # -------------------------------------------------
-# Inspect pickle contents
-# -------------------------------------------------
-st.subheader("📦 Pickle File Contents")
-st.write("Type of loaded object:", type(model_obj))
-
-# Case 1: Dictionary-based pickle
-if isinstance(model_obj, dict):
-    st.write("Keys found in pickle:", list(model_obj.keys()))
-
-    linkage_matrix = model_obj.get("linkage", None)
-    data = model_obj.get("data", None)
-
-# Case 2: Direct linkage matrix
-elif isinstance(model_obj, np.ndarray):
-    linkage_matrix = model_obj
-    data = None
-
-else:
-    linkage_matrix = None
-    data = None
-
-# -------------------------------------------------
-# Dendrogram Visualization
+# Dendrogram
 # -------------------------------------------------
 st.subheader("🌳 Hierarchical Dendrogram")
 
-if linkage_matrix is not None:
+if isinstance(model_obj, dict) and "linkage" in model_obj:
     fig, ax = plt.subplots(figsize=(8, 4))
-    dendrogram(linkage_matrix)
-    ax.set_title("Sales Hierarchy Dendrogram")
-    ax.set_xlabel("Samples")
-    ax.set_ylabel("Distance")
+    dendrogram(model_obj["linkage"])
+    st.pyplot(fig)
+elif isinstance(model_obj, np.ndarray):
+    fig, ax = plt.subplots(figsize=(8, 4))
+    dendrogram(model_obj)
     st.pyplot(fig)
 else:
-    st.warning("⚠️ No linkage matrix found for dendrogram visualization")
-
-# -------------------------------------------------
-# Optional: Show sales data
-# -------------------------------------------------
-if isinstance(data, pd.DataFrame):
-    st.subheader("📄 Sales Dataset Preview")
-    st.dataframe(data.head())
-
-# -------------------------------------------------
-# Info section
-# -------------------------------------------------
-st.markdown("""
-### 🔍 What this app does
-- Loads hierarchical sales clustering model
-- Displays pickle structure
-- Visualizes dendrogram if linkage exists
-- Shows dataset preview (if available)
-
-### 📌 Common Use Cases
-- Sales region segmentation  
-- Product category hierarchy  
-- Business decision support  
-""")
+    st.warning("⚠️ No linkage matrix found")
