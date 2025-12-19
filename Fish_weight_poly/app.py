@@ -1,51 +1,28 @@
-from flask import Flask, request, render_template, jsonify
-import pickle
+import streamlit as st
 import numpy as np
+import pickle
 
-app = Flask(__name__)
+st.set_page_config(page_title="Fish Weight Prediction", layout="centered")
 
-# Load the model components
-# Note: Since the pkl contains both PolynomialFeatures and LinearRegression, 
-# we must apply them in the correct order.
-with open('Fish_model.pkl', 'rb') as f:
-    model_data = pickle.load(f)
+st.title("🐟 Fish Weight Prediction")
+st.write("Predict fish weight using a **Polynomial Regression model**")
 
-# In your specific pkl, the components are stored sequentially
-poly = model_data[0] # PolynomialFeatures
-model = model_data[1] # LinearRegression
+# Load trained model
+with open("fish_poly_model.pkl", "rb") as f:
+     model = pickle.load(f)
 
-@app.route('/')
-def home():
-    return "Fish Weight Prediction API is Running. Use the /predict endpoint."
+st.success("✅ Model loaded successfully")
 
-@app.route('/predict', methods=['POST'])
-def predict():
-    try:
-        # Get data from POST request
-        data = request.get_json()
-        
-        # Features required: Length1, Length2, Length3, Height, Width
-        features = [
-            data['Length1'], 
-            data['Length2'], 
-            data['Length3'], 
-            data['Height'], 
-            data['Width']
-        ]
-        
-        # Convert to numpy array and reshape for prediction
-        final_features = np.array([features])
-        
-        # 1. Transform features to polynomial
-        poly_features = poly.transform(final_features)
-        
-        # 2. Predict using linear model
-        prediction = model.predict(poly_features)
-        
-        return jsonify({'predicted_weight': float(prediction[0])})
-    
-    except Exception as e:
-        return jsonify({'error': str(e)})
+st.subheader("Enter Fish Measurements")
 
-if __name__ == "__main__":
-    app.run(debug=True)
+l1 = st.number_input("Length1 (cm)", 0.0, 100.0, 20.0)
+l2 = st.number_input("Length2 (cm)", 0.0, 100.0, 22.0)
+l3 = st.number_input("Length3 (cm)", 0.0, 100.0, 25.0)
+h  = st.number_input("Height (cm)",  0.0, 50.0,  6.0)
+w  = st.number_input("Width (cm)",   0.0, 30.0,  4.0)
+
+if st.button("Predict Weight"):
+    input_data = np.array([[l1, l2, l3, h, w]])
+    input_poly = transform(input_data)
+    prediction = model.predict(input_poly)
+    st.success(f"🐟 Predicted Fish Weight: **{prediction[0]:.2f} grams**")
