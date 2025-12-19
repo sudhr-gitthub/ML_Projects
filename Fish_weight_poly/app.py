@@ -15,23 +15,33 @@ Predict the weight of a fish based on its physical dimensions using a **Polynomi
 @st.cache_resource
 def load_model():
     model_path = "Fish_model.pkl"
+    
+    # Check if the file exists to prevent the Errno 2 error
     if not os.path.exists(model_path):
-        st.error(f"❌ File Not Found: Please ensure '{model_path}' is in the same folder as this script.")
+        st.error(f"❌ **File Not Found:** The app cannot find '{model_path}'.")
+        st.info("💡 **Solution:** Ensure 'Fish_model.pkl' is uploaded to the same folder as this script on GitHub or your local machine.")
         return None, None
     
-    with open(model_path, "rb") as f:
-        # The pickle contains [PolynomialFeatures, LinearRegression] 
-        poly, model = pickle.load(f)
-    return poly, model
+    try:
+        with open(model_path, "rb") as f:
+            # The pickle contains [PolynomialFeatures, LinearRegression] sequentially
+            poly, model = pickle.load(f)
+        return poly, model
+    except Exception as e:
+        st.error(f"❌ **Error Loading Model:** {e}")
+        return None, None
 
+# Initialize the model components 
 poly, model = load_model()
 
-if poly is not None:
-    st.success("✅ Model version 1.6.1 loaded successfully")
+if poly is not None and model is not None:
+    st.success("✅ Model loaded successfully (v1.6.1)")
 
     st.divider()
 
-    # Input section based on model metadata 
+    # Input section based on model features: Length1, Length2, Length3, Height, Width 
+    
+    
     col1, col2 = st.columns(2)
 
     with col1:
@@ -45,17 +55,18 @@ if poly is not None:
 
     # Prediction Logic
     if st.button("Predict Weight", type="primary"):
-        # Order: Length1, Length2, Length3, Height, Width 
-        input_features = np.array([[l1, l2, l3, h, w]])
+        # Create input array in the exact order required by the model 
+        input_data = np.array([[l1, l2, l3, h, w]])
         
-        # Apply the Polynomial transformation 
-        input_poly = poly.transform(input_features)
+        # 1. Apply the Polynomial transformation 
+        input_poly = poly.transform(input_data)
         
-        # Generate prediction [cite: 2]
+        # 2. Generate prediction using the linear model 
         prediction = model.predict(input_poly)
         
+        # Display the result (The model has a specific intercept of approx 256.40) 
         st.metric(label="Estimated Fish Weight", value=f"{prediction[0]:.2f} grams")
         st.balloons()
 
-    st.divider()
-    st.info("Note: This model requires Length1, Length2, Length3, Height, and Width.")
+st.divider()
+st.info("Note: This model uses Length1, Length2, Length3, Height, and Width as inputs.")
