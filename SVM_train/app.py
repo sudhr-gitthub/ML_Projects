@@ -3,7 +3,6 @@ import pickle
 import numpy as np
 import os
 
-# ---------------- Page Config ----------------
 st.set_page_config(page_title="Titanic Survival Prediction (SVM)", layout="centered")
 
 st.title("🚢 Titanic Survival Prediction (SVM Model)")
@@ -21,9 +20,13 @@ def load_model():
 model = load_model()
 st.success("✅ Model loaded successfully")
 
-# ---------------- Input Section ----------------
+# ---------------- Debug (optional) ----------------
+# st.write("Model expects features:", model.n_features_in_)
+
+# ---------------- Inputs (MATCH TRAINING) ----------------
 st.subheader("Passenger Information")
 
+passenger_id = st.number_input("Passenger ID", min_value=1, value=1)
 pclass = st.selectbox("Passenger Class", [1, 2, 3])
 sex = st.selectbox("Sex", ["Male", "Female"])
 age = st.number_input("Age", min_value=0.0, max_value=100.0, value=25.0)
@@ -33,29 +36,8 @@ fare = st.number_input("Fare", min_value=0.0, value=10.0)
 embarked = st.selectbox("Embarked Port", ["C", "Q", "S"])
 
 # ---------------- Encoding (MUST match training) ----------------
-sex_encoded = 0 if sex.lower() == "male" else 1
+sex_encoded = 0 if sex == "Male" else 1
 embarked_map = {"C": 1, "Q": 2, "S": 3}
 embarked_encoded = embarked_map[embarked]
 
-input_data = np.array([
-    pclass,
-    sex_encoded,
-    age,
-    sibsp,
-    parch,
-    fare,
-    embarked_encoded
-]).reshape(1, -1)
-
-# ---------------- Prediction ----------------
-if st.button("🔮 Predict Survival"):
-    prediction = model.predict(input_data)[0]
-
-    if prediction == 1:
-        st.success("✅ Passenger is **LIKELY TO SURVIVE**")
-    else:
-        st.error("❌ Passenger is **NOT LIKELY TO SURVIVE**")
-
-# ---------------- Footer ----------------
-st.markdown("---")
-st.caption("SVM Classification Model | Titanic Dataset")
+# ---------------- Feature Orde
