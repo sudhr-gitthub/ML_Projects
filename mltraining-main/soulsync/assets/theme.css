@@ -1,0 +1,134 @@
+/* SoulSync Theme CSS (light, student-friendly) */
+
+:root{
+  --ss-primary: #22B8CF;
+  --ss-bg: #FAFBFF;
+  --ss-panel: #F1F5FF;
+  --ss-text: #1F2937;
+
+  --ss-mint: #BFF5E6;
+  --ss-sky: #CFE8FF;
+  --ss-lav: #E7D7FF;
+  --ss-peach: #FFE2D1;
+  --ss-sun: #FFE9A8;
+  --ss-coral: #FF7A6B;
+
+  --ss-radius: 18px;
+  --ss-shadow: 0 10px 25px rgba(31,41,55,.08);
+  --ss-shadow-soft: 0 6px 18px rgba(31,41,55,.06);
+}
+
+html, body, [class*="css"]{
+  font-family: "Poppins","Nunito", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+.ss-title{
+  font-weight: 800;
+  letter-spacing: .2px;
+  color: var(--ss-text);
+}
+
+.ss-subtitle{
+  opacity: .85;
+  margin-top: -6px;
+}
+
+.ss-card{
+  background: white;
+  border-radius: var(--ss-radius);
+  box-shadow: var(--ss-shadow);
+  padding: 16px 16px;
+  border: 1px solid rgba(34,184,207,.12);
+}
+
+.ss-card--panel{
+  background: var(--ss-panel);
+  border-radius: var(--ss-radius);
+  box-shadow: var(--ss-shadow-soft);
+  padding: 16px 16px;
+  border: 1px solid rgba(34,184,207,.10);
+}
+
+.ss-chip{
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(31,41,55,.08);
+  background: rgba(241,245,255,.9);
+  box-shadow: 0 3px 10px rgba(31,41,55,.05);
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin: 4px 6px 4px 0;
+}
+
+.ss-badge{
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(34,184,207,.12);
+  border: 1px solid rgba(34,184,207,.25);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.ss-bubble-wrap{
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ss-bubble{
+  max-width: 85%;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(31,41,55,.08);
+  box-shadow: var(--ss-shadow-soft);
+  line-height: 1.35;
+}
+
+.ss-bubble.user{
+  align-self: flex-end;
+  background: rgba(34,184,207,.12);
+  border-color: rgba(34,184,207,.25);
+}
+
+.ss-bubble.assistant{
+  align-self: flex-start;
+  background: white;
+}
+
+.ss-muted{
+  opacity: .72;
+  font-size: .9rem;
+}
+
+.ss-hr{
+  height: 1px;
+  background: rgba(31,41,55,.08);
+  margin: 12px 0;
+}
+
+.ss-row{
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 14px;
+}
+
+.ss-col-6{ grid-column: span 6; }
+.ss-col-4{ grid-column: span 4; }
+.ss-col-8{ grid-column: span 8; }
+.ss-col-12{ grid-column: span 12; }
+
+@media(max-width: 960px){
+  .ss-col-6,.ss-col-4,.ss-col-8{ grid-column: span 12; }
+}
+
+button[kind="primary"]{
+  border-radius: 14px !important;
+  box-shadow: var(--ss-shadow-soft) !important;
+}
+div[data-testid="stTextInput"] input, textarea{
+  border-radius: 14px !important;
+}
